@@ -15,4 +15,13 @@ export const API_ENDPOINTS = {
   AUTH_ME: '/auth/me/',
   PETS: '/pets/',
   PET_DETAIL: (id: string) => `/pets/${id}/`,
+  DEVICES: '/devices/',
+  DEVICE_DETAIL: (id: string) => `/devices/${id}/`,
+  DEVICE_PAIR: (id: string) => `/devices/${id}/pair/`,
+  DEVICE_UNPAIR: (id: string) => `/devices/${id}/unpair/`,
+  DEVICE_REVOKE: (id: string) => `/devices/${id}/revoke/`,
+  TELEMETRY_INGEST: '/telemetry/ingest/',
+  TELEMETRY_LIST: '/telemetry/',
+  INSIGHTS_LIST: '/insights/',
+  INSIGHTS_GENERATE: (petId: string) => `/insights/generate/${petId}/`,
 };

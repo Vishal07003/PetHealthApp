@@ -17,6 +17,8 @@ interface PetDetailScreenProps {
   onBack: () => void;
   onEdit: (pet: Pet) => void;
   onPetDeleted: (id: string) => void;
+  onNavigateToScanner: () => void;
+  onNavigateToInsights: () => void;
 }
 
 export const PetDetailScreen: React.FC<PetDetailScreenProps> = ({
@@ -24,6 +26,8 @@ export const PetDetailScreen: React.FC<PetDetailScreenProps> = ({
   onBack,
   onEdit,
   onPetDeleted,
+  onNavigateToScanner,
+  onNavigateToInsights,
 }) => {
   const [deleting, setDeleting] = useState(false);
 
@@ -117,14 +121,24 @@ export const PetDetailScreen: React.FC<PetDetailScreenProps> = ({
         )}
       </View>
 
-      {/* Wearable Sensors Architecture Placeholder */}
+      {/* Wearable Sensors Architecture & Pairing */}
       <View style={styles.sensorCard}>
         <Text style={styles.sensorTitle}>Wearable Device Status</Text>
         <Text style={styles.sensorSubtitle}>
-          ESP32 IMU Collar tracker not yet paired. Wearable pairing & telemetry sync will attach to this profile.
+          Pair an ESP32 IMU collar to transmit continuous 3-axis motion and activity vitals.
         </Text>
-        <View style={styles.sensorBadge}>
-          <Text style={styles.sensorBadgeText}>Ready For Device Pairing</Text>
+        <View style={styles.sensorBtnRow}>
+          <Button
+            title="⚡ Pair Wearable Collar"
+            onPress={onNavigateToScanner}
+            style={styles.pairSensorBtn}
+          />
+          <Button
+            title="📊 Activity Insights & Simulator"
+            variant="secondary"
+            onPress={onNavigateToInsights}
+            style={styles.insightsBtn}
+          />
         </View>
       </View>
 
@@ -259,18 +273,16 @@ const styles = StyleSheet.create({
     marginTop: 6,
     lineHeight: 18,
   },
-  sensorBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.primaryLight,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    marginTop: 12,
+  sensorBtnRow: {
+    flexDirection: 'column',
+    gap: 8,
+    marginTop: 14,
   },
-  sensorBadgeText: {
-    color: Colors.primaryDark,
-    fontSize: 12,
-    fontWeight: '700',
+  pairSensorBtn: {
+    height: 44,
+  },
+  insightsBtn: {
+    height: 44,
   },
   deleteBtn: {
     marginTop: Spacing.sm,

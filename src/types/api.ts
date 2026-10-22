@@ -41,6 +41,69 @@ export interface PetCreatePayload {
 
 export interface PetUpdatePayload extends Partial<PetCreatePayload> {}
 
+export type DeviceStatus = 'registered' | 'paired' | 'unpaired' | 'revoked';
+export type HardwareType = 'esp32_imu_collar' | 'simulator';
+
+export interface Device {
+  id: string; // UUID
+  name: string;
+  device_uid: string;
+  hardware_type: HardwareType;
+  firmware_version: string;
+  status: DeviceStatus;
+  pet: string | null;
+  pet_name: string | null;
+  is_connected: boolean;
+  last_seen_at: string | null;
+  battery_level: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DeviceRegisterResponse extends Device {
+  token?: string;
+}
+
+export interface TelemetryReading {
+  id: string;
+  device: string;
+  device_uid: string;
+  pet: string | null;
+  pet_name: string | null;
+  timestamp: string;
+  accel_x: number;
+  accel_y: number;
+  accel_z: number;
+  gyro_x: number | null;
+  gyro_y: number | null;
+  gyro_z: number | null;
+  accel_magnitude: number;
+  battery_level: number | null;
+  rssi: number | null;
+  is_simulation: boolean;
+  received_at: string;
+}
+
+export interface ActivitySummary {
+  id: string;
+  pet: string;
+  pet_name: string;
+  window_start: string;
+  window_end: string;
+  total_samples: number;
+  avg_acceleration: number;
+  peak_acceleration: number;
+  rest_minutes: number;
+  active_minutes: number;
+  high_intensity_minutes: number;
+  dominant_state: 'resting' | 'walking' | 'running' | 'unknown';
+  anomaly_detected: boolean;
+  anomaly_reason: string;
+  confidence_score: number;
+  is_simulation: boolean;
+  created_at: string;
+}
+
 export interface AuthTokens {
   access: string;
   refresh: string;

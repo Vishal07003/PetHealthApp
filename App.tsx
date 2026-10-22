@@ -9,11 +9,20 @@ import { AddPetScreen } from './src/screens/AddPetScreen';
 import { PetDetailScreen } from './src/screens/PetDetailScreen';
 import { EditPetScreen } from './src/screens/EditPetScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
+import { DeviceScannerScreen } from './src/screens/DeviceScannerScreen';
+import { ActivityInsightsScreen } from './src/screens/ActivityInsightsScreen';
 import { Pet } from './src/types/api';
 import { Colors } from './src/theme/theme';
 
 type AuthScreenState = 'login' | 'register';
-type AppScreenState = 'home' | 'add_pet' | 'pet_detail' | 'edit_pet' | 'profile';
+type AppScreenState =
+  | 'home'
+  | 'add_pet'
+  | 'pet_detail'
+  | 'edit_pet'
+  | 'profile'
+  | 'device_scanner'
+  | 'insights';
 
 const MainNavigator: React.FC = () => {
   const { user, loading } = useAuth();
@@ -67,6 +76,35 @@ const MainNavigator: React.FC = () => {
             setSelectedPet(null);
             setAppScreen('home');
           }}
+          onNavigateToScanner={() => setAppScreen('device_scanner')}
+          onNavigateToInsights={() => setAppScreen('insights')}
+        />
+      );
+
+    case 'device_scanner':
+      if (!selectedPet) {
+        setAppScreen('home');
+        return null;
+      }
+      return (
+        <DeviceScannerScreen
+          pet={selectedPet}
+          onBack={() => setAppScreen('pet_detail')}
+          onDevicePaired={() => {
+            setAppScreen('pet_detail');
+          }}
+        />
+      );
+
+    case 'insights':
+      if (!selectedPet) {
+        setAppScreen('home');
+        return null;
+      }
+      return (
+        <ActivityInsightsScreen
+          pet={selectedPet}
+          onBack={() => setAppScreen('pet_detail')}
         />
       );
 

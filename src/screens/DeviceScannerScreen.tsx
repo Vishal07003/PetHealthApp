@@ -137,14 +137,14 @@ export const DeviceScannerScreen: React.FC<DeviceScannerScreenProps> = ({
 
       <View style={styles.actionRow}>
         <Button
-          title={scanning && !isDemoMode ? 'Scanning BLE...' : '🔍 Scan Real BLE Hardware'}
+          title={scanning && !isDemoMode ? 'Scanning BLE...' : 'Scan Real BLE Hardware'}
           onPress={startRealBleScan}
           loading={scanning && !isDemoMode}
           disabled={scanning}
           style={styles.scanBtn}
         />
         <Button
-          title={scanning && isDemoMode ? 'Finding Demo...' : '🧪 Demo Simulator Mode'}
+          title={scanning && isDemoMode ? 'Finding Demo...' : 'Demo Simulator Mode'}
           onPress={startDemoSimulationScan}
           variant="secondary"
           loading={scanning && isDemoMode}

@@ -73,6 +73,8 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
           }
         }
         setErrors(fieldErrors);
+      } else if (err.message) {
+        setErrors({ general: `${err.message}. Check backend connection.` });
       } else {
         setErrors({ general: 'Registration failed. Please try again.' });
       }

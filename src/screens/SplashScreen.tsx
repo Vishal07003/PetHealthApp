@@ -6,7 +6,7 @@ export const SplashScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.logoBadge}>
-        <Text style={styles.logoIcon}>🐾</Text>
+        <Text style={styles.logoText}>PH</Text>
       </View>
       <Text style={styles.title}>PetHealth</Text>
       <Text style={styles.subtitle}>Smart Activity & Health Monitoring</Text>
@@ -32,8 +32,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  logoIcon: {
-    fontSize: 40,
+  logoText: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: Colors.primary,
   },
   title: {
     fontSize: 32,

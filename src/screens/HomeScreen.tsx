@@ -98,7 +98,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       {/* Top App Header */}
       <View style={styles.topBar}>
         <View>
-          <Text style={styles.greeting}>Hello, {user?.first_name || user?.username || 'Friend'} 👋</Text>
+          <Text style={styles.greeting}>Hello, {user?.first_name || user?.username || 'Friend'}</Text>
           <Text style={styles.tagline}>Pet Activity & Vitals Dashboard</Text>
         </View>
         <TouchableOpacity
@@ -138,7 +138,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         ListEmptyComponent={
           loading ? undefined : (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>🐾</Text>
               <Text style={Typography.titleMedium}>No Pets Added Yet</Text>
               <Text style={styles.emptySubtitle}>
                 Add your dog, cat, or other pet to start tracking activity and wearable sensors.

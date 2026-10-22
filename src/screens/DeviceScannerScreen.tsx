@@ -102,7 +102,7 @@ export const DeviceScannerScreen: React.FC<DeviceScannerScreenProps> = ({
       const paired = await DeviceService.pairDevice(registered.id, pet.id);
 
       Alert.alert(
-        'Collar Paired Successfully! 🎉',
+        'Collar Paired Successfully',
         `${item.name} is now linked with ${pet.name}. Telemetry ingestion credentials have been securely provisioned.`,
         [
           {
@@ -131,7 +131,7 @@ export const DeviceScannerScreen: React.FC<DeviceScannerScreenProps> = ({
 
       <View style={styles.targetCard}>
         <Text style={styles.targetLabel}>Target Pet</Text>
-        <Text style={styles.targetName}>🐾 {pet.name} ({pet.species.toUpperCase()})</Text>
+        <Text style={styles.targetName}>{pet.name} ({pet.species.toUpperCase()})</Text>
         <Text style={styles.targetSubtitle}>Assign a wearable collar to enable activity monitoring and health tracking.</Text>
       </View>
 
@@ -156,7 +156,7 @@ export const DeviceScannerScreen: React.FC<DeviceScannerScreenProps> = ({
       {/* Notice on Real vs Demo mode */}
       <View style={styles.noticeBox}>
         <Text style={styles.noticeTitle}>
-          {isDemoMode ? '🟡 DEMO MODE ACTIVE' : 'ℹ️ HARDWARE STATUS'}
+          {isDemoMode ? 'DEMO MODE ACTIVE' : 'HARDWARE STATUS'}
         </Text>
         <Text style={styles.noticeText}>
           {isDemoMode

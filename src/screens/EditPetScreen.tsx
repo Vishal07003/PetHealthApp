@@ -131,7 +131,7 @@ export const EditPetScreen: React.FC<EditPetScreenProps> = ({
               onPress={() => setSpecies(sp)}
             >
               <Text style={[styles.pillText, species === sp && styles.pillTextActive]}>
-                {sp === 'dog' ? '🐶 Dog' : sp === 'cat' ? '🐱 Cat' : '🐾 Other'}
+                {sp === 'dog' ? 'Dog' : sp === 'cat' ? 'Cat' : 'Other'}
               </Text>
             </TouchableOpacity>
           ))}

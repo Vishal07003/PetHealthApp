@@ -79,7 +79,7 @@ export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ 
       // Compute fresh insight window
       await InsightsService.generateInsights(pet.id);
       await fetchData();
-      Alert.alert('Simulated Telemetry Ingested! 🐾', '15 synthetic IMU readings recorded and activity window computed.');
+      Alert.alert('Simulated Telemetry Ingested', '15 synthetic IMU readings recorded and activity window computed.');
     } catch (err: any) {
       // In case device credentials are required, compute with existing readings or display message
       try {
@@ -105,7 +105,7 @@ export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ 
 
       {/* Pet Header */}
       <View style={styles.headerCard}>
-        <Text style={styles.petTitle}>🐾 {pet.name}'s Health Insights</Text>
+        <Text style={styles.petTitle}>{pet.name}'s Health Insights</Text>
         <Text style={styles.petSubtitle}>
           Statistical movement observation derived from wearable 3-axis accelerometer/gyroscope sensors.
         </Text>
@@ -119,14 +119,14 @@ export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ 
       {/* Simulator Test Action */}
       <View style={styles.simCard}>
         <View style={styles.simHeader}>
-          <Text style={styles.simTitle}>🧪 Synthetic IMU Simulator</Text>
+          <Text style={styles.simTitle}>Synthetic IMU Simulator</Text>
           <Text style={styles.simTag}>DEMO</Text>
         </View>
         <Text style={styles.simSubtitle}>
           Simulate a high-energy running & walking session to verify telemetry vector math and anomaly inference.
         </Text>
         <Button
-          title={simulating ? 'Ingesting Sensor Data...' : '⚡ Ingest Simulated Telemetry Batch'}
+          title={simulating ? 'Ingesting Sensor Data...' : 'Ingest Simulated Telemetry Batch'}
           variant="secondary"
           onPress={handleRunSimulatorBatch}
           loading={simulating}
@@ -149,10 +149,10 @@ export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ 
             <View style={styles.summaryTop}>
               <Text style={styles.summaryState}>
                 {s.dominant_state === 'running'
-                  ? '⚡ Active / Running'
+                  ? 'Active / Running'
                   : s.dominant_state === 'walking'
-                  ? '🚶 Walking / Active'
-                  : '💤 Resting / Low Motion'}
+                  ? 'Walking / Active'
+                  : 'Resting / Low Motion'}
               </Text>
               {s.is_simulation && <Text style={styles.simBadge}>SIMULATED</Text>}
             </View>
@@ -174,7 +174,7 @@ export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ 
 
             {s.anomaly_detected && (
               <View style={styles.anomalyBox}>
-                <Text style={styles.anomalyText}>⚠️ Anomaly: {s.anomaly_reason}</Text>
+                <Text style={styles.anomalyText}>Anomaly: {s.anomaly_reason}</Text>
               </View>
             )}
           </View>
@@ -194,7 +194,7 @@ export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ 
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={styles.readingSource}>{r.is_simulation ? 'Simulated' : 'ESP32 IMU'}</Text>
             {r.battery_level !== null && (
-              <Text style={styles.readingBattery}>🔋 {r.battery_level}%</Text>
+              <Text style={styles.readingBattery}>Battery {r.battery_level}%</Text>
             )}
           </View>
         </View>

@@ -57,7 +57,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister }
     <KeyboardAwareContainer contentContainerStyle={styles.scrollContent}>
       <View style={styles.header}>
         <View style={styles.iconCircle}>
-          <Text style={styles.icon}>🐕</Text>
+          <Text style={styles.brandBadgeText}>PH</Text>
         </View>
         <Text style={Typography.titleLarge}>Welcome Back</Text>
         <Text style={Typography.bodyMedium}>Log in to monitor your pets</Text>
@@ -127,8 +127,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.sm,
   },
-  icon: {
-    fontSize: 32,
+  brandBadgeText: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.primary,
   },
   formCard: {
     backgroundColor: Colors.surface,

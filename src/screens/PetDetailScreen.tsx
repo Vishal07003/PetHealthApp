@@ -129,12 +129,12 @@ export const PetDetailScreen: React.FC<PetDetailScreenProps> = ({
         </Text>
         <View style={styles.sensorBtnRow}>
           <Button
-            title="⚡ Pair Wearable Collar"
+            title="Pair Wearable Collar"
             onPress={onNavigateToScanner}
             style={styles.pairSensorBtn}
           />
           <Button
-            title="📊 Activity Insights & Simulator"
+            title="Activity Insights & Simulator"
             variant="secondary"
             onPress={onNavigateToInsights}
             style={styles.insightsBtn}

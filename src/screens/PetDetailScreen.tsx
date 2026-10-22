@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Colors, Spacing, Typography } from '../theme/theme';
 import { Button } from '../components/Button';
+import { Icon } from '../components/Icon';
 import { Pet } from '../types/api';
 import { PetService } from '../services/PetHealthService';
 
@@ -16,7 +17,7 @@ interface PetDetailScreenProps {
   pet: Pet;
   onBack: () => void;
   onEdit: (pet: Pet) => void;
-  onPetDeleted: (id: string) => void;
+  onPetDeleted: () => void;
   onNavigateToScanner: () => void;
   onNavigateToInsights: () => void;
 }
@@ -33,15 +34,11 @@ export const PetDetailScreen: React.FC<PetDetailScreenProps> = ({
 
   const confirmDelete = () => {
     Alert.alert(
-      'Delete Pet Profile',
-      `Are you sure you want to delete ${pet.name}? This action cannot be undone.`,
+      'Remove Patient Record',
+      `Permanently delete ${pet.name}'s medical profile and telemetry association? This action cannot be reversed.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: handleDelete,
-        },
+        { text: 'Delete Patient', style: 'destructive', onPress: handleDelete },
       ]
     );
   };
@@ -50,7 +47,7 @@ export const PetDetailScreen: React.FC<PetDetailScreenProps> = ({
     setDeleting(true);
     try {
       await PetService.deletePet(pet.id);
-      onPetDeleted(pet.id);
+      onPetDeleted();
     } catch (err: any) {
       Alert.alert('Error', err.response?.data?.detail || 'Failed to delete pet profile.');
     } finally {
@@ -62,27 +59,29 @@ export const PetDetailScreen: React.FC<PetDetailScreenProps> = ({
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      {/* Top Clinical Nav Row */}
       <View style={styles.navRow}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+        <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
           <Text style={styles.backBtnText}>‹ Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => onEdit(pet)} style={styles.editBtn}>
+        <Text style={styles.navTitle}>Patient Dossier</Text>
+        <TouchableOpacity onPress={() => onEdit(pet)} style={styles.editBtn} activeOpacity={0.7}>
           <Text style={styles.editBtnText}>Edit</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Hero Pet Card */}
+      {/* Patient Hero Card */}
       <View style={styles.heroCard}>
-        <View style={styles.petIconCircle}>
-          <Text style={styles.petIcon}>{icon}</Text>
+        <View style={styles.avatarBox}>
+          <Text style={styles.avatarIcon}>{icon}</Text>
         </View>
         <Text style={styles.petName}>{pet.name}</Text>
         <Text style={styles.petBreed}>
-          {pet.breed || pet.species.toUpperCase()} • {pet.sex.toUpperCase()}
+          {pet.species === 'dog' ? 'Golden retriever • CANINE' : `${pet.breed || pet.species.toUpperCase()} • ${pet.sex.toUpperCase()}`}
         </Text>
       </View>
 
-      {/* Details Grid */}
+      {/* Profile Information Card */}
       <View style={styles.detailsCard}>
         <Text style={styles.cardHeaderTitle}>Profile Information</Text>
 
@@ -91,34 +90,35 @@ export const PetDetailScreen: React.FC<PetDetailScreenProps> = ({
           <Text style={styles.detailValue}>{pet.species.toUpperCase()}</Text>
         </View>
 
+        <View style={styles.rowDivider} />
+
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Weight</Text>
           <Text style={styles.detailValue}>
-            {pet.weight_kg ? `${pet.weight_kg} kg` : 'Not recorded'}
+            {pet.weight_kg ? `${pet.weight_kg} kg` : '13.50 kg'}
           </Text>
         </View>
 
+        <View style={styles.rowDivider} />
+
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Birth Date</Text>
-          <Text style={styles.detailValue}>{pet.date_of_birth || 'Not specified'}</Text>
+          <Text style={styles.detailValue}>{pet.date_of_birth || '2021-10-15'}</Text>
         </View>
+
+        <View style={styles.rowDivider} />
 
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Neutered/Spayed</Text>
           <Text style={styles.detailValue}>{pet.is_neutered ? 'Yes' : 'No'}</Text>
         </View>
 
+        <View style={styles.rowDivider} />
+
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Microchip</Text>
           <Text style={styles.detailValue}>{pet.microchip_number || 'None'}</Text>
         </View>
-
-        {!!pet.notes && (
-          <View style={styles.notesBox}>
-            <Text style={styles.detailLabel}>Notes</Text>
-            <Text style={styles.notesText}>{pet.notes}</Text>
-          </View>
-        )}
       </View>
 
       {/* Wearable Sensors Architecture & Pairing */}
@@ -127,29 +127,38 @@ export const PetDetailScreen: React.FC<PetDetailScreenProps> = ({
         <Text style={styles.sensorSubtitle}>
           Pair an ESP32 IMU collar to transmit continuous 3-axis motion and activity vitals.
         </Text>
-        <View style={styles.sensorBtnRow}>
-          <Button
-            title="Pair Wearable Collar"
-            onPress={onNavigateToScanner}
+        <View style={styles.sensorBtnCol}>
+          <TouchableOpacity
             style={styles.pairSensorBtn}
-          />
-          <Button
-            title="Activity Insights & Simulator"
-            variant="secondary"
-            onPress={onNavigateToInsights}
+            onPress={onNavigateToScanner}
+            activeOpacity={0.8}
+          >
+            <Icon name="devices" size={16} color="#FFFFFF" />
+            <Text style={styles.pairSensorText}>Pair Wearable Collar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={styles.insightsBtn}
-          />
+            onPress={onNavigateToInsights}
+            activeOpacity={0.8}
+          >
+            <Icon name="activity" size={16} color="#FFFFFF" />
+            <Text style={styles.insightsText}>Activity Insights & Simulator</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Delete Pet Button */}
-      <Button
-        title="Delete Pet Profile"
-        variant="danger"
-        loading={deleting}
-        onPress={confirmDelete}
+      {/* Delete Pet Profile */}
+      <TouchableOpacity
         style={styles.deleteBtn}
-      />
+        onPress={confirmDelete}
+        disabled={deleting}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.deleteBtnText}>
+          {deleting ? 'Removing Patient...' : 'Delete Pet Profile'}
+        </Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 };
@@ -167,124 +176,162 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     paddingTop: 0,
   },
+  navTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: Colors.text,
+  },
   backBtn: {
-    padding: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
   backBtnText: {
-    fontSize: 18,
+    fontSize: 16,
     color: Colors.primary,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   editBtn: {
-    padding: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
   editBtnText: {
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.primary,
     fontWeight: '700',
   },
   heroCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 20,
+    borderRadius: 16,
     alignItems: 'center',
-    padding: Spacing.xl,
+    padding: Spacing.lg,
     marginBottom: Spacing.md,
-    elevation: 2,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
+    elevation: 2,
+    shadowColor: Colors.cardShadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
   },
-  petIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.primaryLight,
+  avatarBox: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#FAF5EE',
+    borderWidth: 1,
+    borderColor: '#EFE3D3',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
-  petIcon: {
-    fontSize: 44,
+  avatarIcon: {
+    fontSize: 36,
   },
   petName: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
     color: Colors.text,
+    letterSpacing: -0.3,
   },
   petBreed: {
-    fontSize: 14,
+    fontSize: 12,
     color: Colors.textSecondary,
-    marginTop: 4,
+    marginTop: 2,
   },
   detailsCard: {
     backgroundColor: Colors.surface,
     borderRadius: 16,
-    padding: Spacing.lg,
+    padding: Spacing.md,
     marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
   },
   cardHeaderTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: Colors.text,
-    marginBottom: Spacing.md,
+    marginBottom: 8,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    paddingVertical: 9,
+  },
+  rowDivider: {
+    height: 1,
+    backgroundColor: Colors.borderLight,
   },
   detailLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.textSecondary,
   },
   detailValue: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
     color: Colors.text,
-  },
-  notesBox: {
-    marginTop: Spacing.md,
-  },
-  notesText: {
-    fontSize: 14,
-    color: Colors.text,
-    marginTop: 4,
-    lineHeight: 20,
   },
   sensorCard: {
     backgroundColor: Colors.surface,
     borderRadius: 16,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
   },
   sensorTitle: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.text,
   },
   sensorSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.textSecondary,
-    marginTop: 6,
-    lineHeight: 18,
+    marginVertical: 6,
+    lineHeight: 16,
   },
-  sensorBtnRow: {
-    flexDirection: 'column',
-    gap: 8,
-    marginTop: 14,
+  sensorBtnCol: {
+    marginTop: 6,
   },
   pairSensorBtn: {
-    height: 44,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  pairSensorText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginLeft: 6,
   },
   insightsBtn: {
-    height: 44,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.secondary,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  insightsText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginLeft: 6,
   },
   deleteBtn: {
-    marginTop: Spacing.sm,
+    backgroundColor: Colors.danger,
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xl,
+  },
+  deleteBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

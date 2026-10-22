@@ -76,7 +76,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
       } else if (err.message) {
         setErrors({ general: `${err.message}. Check backend connection.` });
       } else {
-        setErrors({ general: 'Registration failed. Please try again.' });
+        setErrors({ general: 'Registration failed. Please check information and try again.' });
       }
     } finally {
       setLoading(false);
@@ -85,9 +85,16 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
 
   return (
     <KeyboardAwareContainer contentContainerStyle={styles.scrollContent}>
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={Typography.titleLarge}>Create Account</Text>
-        <Text style={Typography.bodyMedium}>Join PetHealth to track pet vitals & activity</Text>
+        <View style={styles.logoBadge}>
+          <Text style={styles.logoBadgeText}>PH</Text>
+        </View>
+        <Text style={styles.brandSubtitle}>CLINICAL BIO-CARE • ENROLLMENT</Text>
+        <Text style={styles.titleLarge}>Create Account</Text>
+        <Text style={styles.bodyMedium}>
+          Join the Pet Health Telemetry Network to monitor vitals and wearables
+        </Text>
       </View>
 
       {!!errors.general && (
@@ -96,48 +103,53 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
         </View>
       )}
 
+      {/* Form Card */}
       <View style={styles.formCard}>
         <Input
-          label="Username"
-          placeholder="e.g. petlover99"
+          label="Account Username *"
+          placeholder="e.g. cooper01"
           autoCapitalize="none"
+          autoCorrect={false}
           value={username}
           onChangeText={setUsername}
           error={errors.username}
         />
 
         <Input
-          label="Email Address"
-          placeholder="you@example.com"
-          keyboardType="email-address"
+          label="Email Address *"
+          placeholder="owner@domain.com"
           autoCapitalize="none"
+          keyboardType="email-address"
+          autoCorrect={false}
           value={email}
           onChangeText={setEmail}
           error={errors.email}
         />
 
-        <View style={styles.row}>
-          <Input
-            label="First Name"
-            placeholder="Jane"
-            containerStyle={styles.halfInput}
-            value={firstName}
-            onChangeText={setFirstName}
-            error={errors.first_name}
-          />
-          <Input
-            label="Last Name"
-            placeholder="Doe"
-            containerStyle={styles.halfInput}
-            value={lastName}
-            onChangeText={setLastName}
-            error={errors.last_name}
-          />
+        <View style={styles.nameRow}>
+          <View style={{ flex: 1, marginRight: 6 }}>
+            <Input
+              label="First Name"
+              placeholder="e.g. Vishal"
+              value={firstName}
+              onChangeText={setFirstName}
+              error={errors.first_name}
+            />
+          </View>
+          <View style={{ flex: 1, marginLeft: 6 }}>
+            <Input
+              label="Last Name"
+              placeholder="e.g. Bharti"
+              value={lastName}
+              onChangeText={setLastName}
+              error={errors.last_name}
+            />
+          </View>
         </View>
 
         <Input
-          label="Password"
-          placeholder="At least 8 characters"
+          label="Password *"
+          placeholder="Min 8 characters"
           secureTextEntry
           value={password}
           onChangeText={setPassword}
@@ -145,24 +157,24 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
         />
 
         <Input
-          label="Confirm Password"
+          label="Confirm Password *"
           placeholder="Re-enter password"
           secureTextEntry
           value={passwordConfirm}
           onChangeText={setPasswordConfirm}
-          error={errors.passwordConfirm || errors.password_confirm}
+          error={errors.passwordConfirm}
         />
 
         <Button
-          title="Create Account"
+          title="Create Clinical Account"
           onPress={handleRegister}
           loading={loading}
           style={styles.registerBtn}
         />
 
         <View style={styles.footerRow}>
-          <Text style={styles.footerText}>Already have an account? </Text>
-          <TouchableOpacity onPress={onNavigateToLogin}>
+          <Text style={styles.footerText}>Already registered? </Text>
+          <TouchableOpacity onPress={onNavigateToLogin} activeOpacity={0.8}>
             <Text style={styles.loginLink}>Sign In</Text>
           </TouchableOpacity>
         </View>
@@ -175,59 +187,95 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     backgroundColor: Colors.background,
-    padding: Spacing.lg,
-    paddingTop: Spacing.xl,
+    padding: Spacing.md,
+    paddingTop: Spacing.sm,
   },
   header: {
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  logoBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  logoBadgeText: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  brandSubtitle: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: Colors.primary,
+    letterSpacing: 0.8,
+    marginBottom: 2,
+  },
+  titleLarge: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.text,
+    letterSpacing: -0.3,
+  },
+  bodyMedium: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+    textAlign: 'center',
   },
   formCard: {
     backgroundColor: Colors.surface,
-    padding: Spacing.lg,
+    padding: Spacing.md,
     borderRadius: 16,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    elevation: 2,
     shadowColor: Colors.cardShadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 10,
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing.xl,
   },
-  row: {
+  nameRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  halfInput: {
-    width: '48%',
-  },
   registerBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingVertical: 12,
+    marginTop: 6,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginTop: Spacing.md,
+  },
+  footerText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+  },
+  loginLink: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
   },
   errorBanner: {
     backgroundColor: Colors.dangerLight,
     borderLeftWidth: 4,
     borderLeftColor: Colors.danger,
-    padding: Spacing.md,
+    padding: 12,
     borderRadius: 8,
     marginBottom: Spacing.md,
   },
   errorBannerText: {
     color: Colors.danger,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  footerRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: Spacing.lg,
-  },
-  footerText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-  },
-  loginLink: {
-    color: Colors.primary,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

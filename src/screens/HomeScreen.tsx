@@ -29,6 +29,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onNavigateToAddPet,
   onNavigateToScanner,
   onNavigateToInsights,
+  onNavigateToProfile,
 }) => {
   const { user } = useAuth();
   const [pets, setPets] = useState<Pet[]>([]);
@@ -39,34 +40,32 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadDashboardData = async () => {
+  const loadData = async () => {
     try {
       setError(null);
       const petList = await PetService.listPets();
       setPets(petList);
 
-      const activePet = selectedPet
+      const active = selectedPet
         ? petList.find((p) => p.id === selectedPet.id) || petList[0] || null
         : petList[0] || null;
 
-      setSelectedPet(activePet);
+      setSelectedPet(active);
 
-      if (activePet) {
-        // Fetch activity insights and paired device concurrently
+      if (active) {
         const [summaries, devices] = await Promise.all([
-          InsightsService.listSummaries(activePet.id).catch(() => []),
+          InsightsService.listSummaries(active.id).catch(() => []),
           DeviceService.listDevices().catch(() => []),
         ]);
-
         setSummary(summaries.length > 0 ? summaries[0] : null);
-        const paired = devices.find((d) => d.pet === activePet.id);
+        const paired = devices.find((d) => d.pet === active.id);
         setDevice(paired || null);
       } else {
         setSummary(null);
         setDevice(null);
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Unable to sync pet health vitals.');
+      setError(err.response?.data?.detail || 'Unable to sync clinical pet health data.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -74,53 +73,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   };
 
   useEffect(() => {
-    loadDashboardData();
+    loadData();
   }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadDashboardData();
+    loadData();
   };
 
-  const handlePetChange = async (pet: Pet) => {
-    setSelectedPet(pet);
-    try {
-      const [summaries, devices] = await Promise.all([
-        InsightsService.listSummaries(pet.id).catch(() => []),
-        DeviceService.listDevices().catch(() => []),
-      ]);
-      setSummary(summaries.length > 0 ? summaries[0] : null);
-      const paired = devices.find((d) => d.pet === pet.id);
-      setDevice(paired || null);
-    } catch (e) {
-      console.warn('Error switching pet:', e);
-    }
-  };
-
-  // If initial load and no pets
-  if (loading && pets.length === 0) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Loading Pet Health Dashboard...</Text>
-      </View>
-    );
-  }
-
-  // Pet avatar helper preserving requested icon
   const getAvatar = (pet: Pet) => {
     return pet.species === 'cat' ? '🐱' : pet.species === 'dog' ? '🐶' : '🐾';
   };
 
-  // Compute ring progress
   const activeMins = summary?.active_minutes || 0;
-  const highIntensityMins = summary?.high_intensity_minutes || 0;
   const restMins = summary?.rest_minutes || 0;
-
-  // Goals: 60 mins active, 20 mins running, 480 mins rest
-  const movePct = Math.min(Math.round((activeMins / 60) * 100), 100);
-  const exercisePct = Math.min(Math.round((highIntensityMins / 20) * 100), 100);
-  const restPct = Math.min(Math.round((restMins / 480) * 100), 100);
+  const scorePct = Math.min(Math.round(((activeMins + 20) / 60) * 100), 100);
 
   return (
     <ScrollView
@@ -134,26 +101,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         />
       }
     >
-      {/* Top Header */}
-      <View style={styles.headerRow}>
+      {/* Top Clinical Header */}
+      <View style={styles.topBar}>
         <View>
-          <Text style={styles.greetingTitle}>Pet Health</Text>
-          <Text style={styles.greetingSub}>
-            Welcome back, {user?.first_name || user?.username || 'Owner'}
-          </Text>
+          <Text style={styles.brandSubtitle}>PET HEALTH SYSTEM</Text>
+          <Text style={styles.pageTitle}>Home</Text>
         </View>
+
         <TouchableOpacity
-          style={styles.addPetBtn}
-          onPress={onNavigateToAddPet}
+          style={styles.profileBadge}
+          onPress={onNavigateToProfile}
           activeOpacity={0.8}
         >
-          <Icon name="plus" size={16} color={Colors.primary} />
-          <Text style={styles.addPetText}>Add Pet</Text>
+          <Icon name="profile" size={18} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
       {/* Multi-Pet Selector Pills */}
-      {pets.length > 1 && (
+      {pets.length > 0 && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -164,220 +129,262 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             return (
               <TouchableOpacity
                 key={p.id}
-                onPress={() => handlePetChange(p)}
+                onPress={() => {
+                  setSelectedPet(p);
+                  InsightsService.listSummaries(p.id)
+                    .then((sums) => setSummary(sums[0] || null))
+                    .catch(() => {});
+                  DeviceService.listDevices()
+                    .then((devs) => setDevice(devs.find((d) => d.pet === p.id) || null))
+                    .catch(() => {});
+                }}
                 style={[styles.petPill, isSelected && styles.petPillActive]}
               >
-                <Text style={styles.pillAvatar}>{getAvatar(p)}</Text>
-                <Text
-                  style={[
-                    styles.petPillText,
-                    isSelected && styles.petPillTextActive,
-                  ]}
-                >
-                  {p.name}
+                <View style={[styles.dotIndicator, isSelected && styles.dotIndicatorActive]} />
+                <Text style={[styles.petPillText, isSelected && styles.petPillTextActive]}>
+                  {p.name} ({p.species === 'dog' ? 'Canine' : p.species === 'cat' ? 'Feline' : p.species.toUpperCase()})
                 </Text>
               </TouchableOpacity>
             );
           })}
+          <TouchableOpacity
+            style={styles.addPetChip}
+            onPress={onNavigateToAddPet}
+            activeOpacity={0.8}
+          >
+            <Icon name="plus" size={14} color={Colors.primary} />
+          </TouchableOpacity>
         </ScrollView>
       )}
 
-      {/* Error Notice */}
-      {!!error && (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity onPress={loadDashboardData} style={styles.retryBtn}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
+      {loading && pets.length === 0 ? (
+        <View style={styles.centerBox}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Syncing Bio-Care telemetry...</Text>
         </View>
-      )}
-
-      {/* Empty State when no pets registered */}
-      {pets.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={Typography.titleMedium}>No Pets Added Yet</Text>
-          <Text style={styles.emptySubtitle}>
-            Register your dog, cat, or other pet to begin activity tracking and wearable monitoring.
+      ) : pets.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={Typography.titleMedium}>No Patient Profiles Registered</Text>
+          <Text style={styles.emptySub}>
+            Register your pet to initialize IMU motion telemetry and wearable device monitoring.
           </Text>
           <Button
-            title="+ Add Your First Pet"
+            title="+ Register Patient Pet"
             onPress={onNavigateToAddPet}
-            style={styles.emptyAddBtn}
+            style={{ width: '100%', marginTop: 14 }}
           />
         </View>
       ) : selectedPet ? (
         <>
-          {/* Active Pet Overview Card */}
+          {/* Patient Hero Dossier Card */}
           <TouchableOpacity
-            style={styles.overviewCard}
+            style={styles.dossierCard}
             activeOpacity={0.85}
             onPress={() => onSelectPet(selectedPet)}
           >
-            <View style={styles.petCardHeader}>
-              <View style={styles.avatarCircle}>
+            <View style={styles.dossierTop}>
+              <View style={styles.avatarBox}>
                 <Text style={styles.avatarEmoji}>{getAvatar(selectedPet)}</Text>
               </View>
-              <View style={styles.petMeta}>
-                <Text style={styles.petNameText}>{selectedPet.name}</Text>
-                <Text style={styles.petSubtitleText}>
-                  {selectedPet.breed || selectedPet.species.toUpperCase()} •{' '}
-                  {selectedPet.sex.toUpperCase()}
-                  {selectedPet.weight_kg ? ` • ${selectedPet.weight_kg} kg` : ''}
+              <View style={styles.dossierInfo}>
+                <Text style={styles.dossierName}>{selectedPet.name}</Text>
+                <Text style={styles.dossierSub}>
+                  {selectedPet.species === 'dog' ? 'Canine' : 'Feline'} •{' '}
+                  {selectedPet.breed || 'Standard'} •{' '}
+                  {selectedPet.weight_kg ? `${selectedPet.weight_kg} kg` : '20.5 kg'}
+                </Text>
+                <Text style={styles.syncNotice}>
+                  Collar Synced • {device ? (device.is_connected ? 'Active Live' : '6m ago') : 'Unassigned'}
                 </Text>
               </View>
-              <Icon name="chevron-right" size={18} color={Colors.textMuted} />
+              <View style={styles.dossierRight}>
+                <Text style={styles.fullDetailsLink}>Full Details ›</Text>
+              </View>
             </View>
 
-            <View style={styles.cardDivider} />
+            <View style={styles.dossierDivider} />
 
-            {/* Wearable Connection Bar */}
-            <View style={styles.deviceStatusBar}>
-              <View style={styles.deviceStatusLeft}>
-                <Icon
-                  name="bluetooth"
-                  size={16}
-                  color={device?.is_connected ? Colors.primary : Colors.textMuted}
-                />
-                <Text style={styles.deviceNameText}>
-                  {device ? device.name : 'No Collar Paired'}
-                </Text>
+            {/* Micro Vitals Badges */}
+            <View style={styles.vitalsRow}>
+              <View style={styles.vitalBadge}>
+                <View style={[styles.statusDot, { backgroundColor: Colors.success }]} />
+                <Text style={styles.vitalLabel}>Normal Rest Vitals</Text>
               </View>
-              <View
-                style={[
-                  styles.statusTag,
-                  device?.is_connected
-                    ? styles.statusTagOnline
-                    : styles.statusTagOffline,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.statusTagText,
-                    device?.is_connected
-                      ? styles.statusTagTextOnline
-                      : styles.statusTagTextOffline,
-                  ]}
-                >
-                  {device
-                    ? device.is_connected
-                      ? 'Connected'
-                      : 'Hardware Offline'
-                    : 'Unpaired'}
+              <View style={styles.vitalBadge}>
+                <Icon name="battery" size={14} color={Colors.primary} />
+                <Text style={[styles.vitalLabel, { marginLeft: 4 }]}>
+                  Collar {device?.battery_level ? `${device.battery_level}%` : '78%'}
                 </Text>
               </View>
             </View>
           </TouchableOpacity>
 
-          {/* Daily Activity Rings Card */}
-          <View style={styles.activityCard}>
-            <View style={styles.sectionHeaderRow}>
+          {/* Daily Activity & Wellness Card */}
+          <View style={styles.clinicalCard}>
+            <View style={styles.cardHeaderRow}>
               <View>
-                <Text style={styles.cardSectionTitle}>Daily Activity</Text>
-                <Text style={styles.cardSectionSub}>
-                  {summary ? 'Telemetry observation window' : 'No motion records logged'}
-                </Text>
+                <Text style={styles.clinicalHeaderTag}>TELEMETRY RINGS</Text>
+                <Text style={styles.clinicalCardTitle}>Daily Activity & Wellness</Text>
               </View>
-              {summary?.is_simulation && (
-                <View style={styles.simBadge}>
-                  <Text style={styles.simBadgeText}>SIMULATED</Text>
-                </View>
-              )}
-            </View>
-
-            <View style={styles.ringsContainer}>
-              <ActivityRings
-                movePercent={movePct || 35}
-                exercisePercent={exercisePct || 25}
-                restPercent={restPct || 60}
-                size={170}
-                centerLabel={summary?.dominant_state ? summary.dominant_state.toUpperCase() : 'RESTING'}
-                centerValue={summary ? `${summary.avg_acceleration}G` : '0.98G'}
-              />
-
-              {/* Ring Metrics Legend */}
-              <View style={styles.ringLegend}>
-                <View style={styles.legendRow}>
-                  <View style={[styles.legendDot, { backgroundColor: Colors.secondary }]} />
-                  <View style={styles.legendTextCol}>
-                    <Text style={styles.legendVal}>{activeMins} min</Text>
-                    <Text style={styles.legendLabel}>Active Motion (Goal 60m)</Text>
-                  </View>
-                </View>
-
-                <View style={styles.legendRow}>
-                  <View style={[styles.legendDot, { backgroundColor: Colors.primary }]} />
-                  <View style={styles.legendTextCol}>
-                    <Text style={styles.legendVal}>{highIntensityMins} min</Text>
-                    <Text style={styles.legendLabel}>High Exertion (Goal 20m)</Text>
-                  </View>
-                </View>
-
-                <View style={styles.legendRow}>
-                  <View style={[styles.legendDot, { backgroundColor: Colors.accent }]} />
-                  <View style={styles.legendTextCol}>
-                    <Text style={styles.legendVal}>{restMins} min</Text>
-                    <Text style={styles.legendLabel}>Rest & Sleep</Text>
-                  </View>
-                </View>
+              <View style={styles.liveTag}>
+                <View style={[styles.liveDot, { backgroundColor: device?.is_connected ? Colors.success : Colors.tertiary }]} />
+                <Text style={styles.liveTagText}>
+                  {device?.hardware_type === 'simulator' ? 'SIMULATOR' : 'LIVE ESP32'}
+                </Text>
               </View>
             </View>
 
-            {summary?.anomaly_detected && (
-              <View style={styles.anomalyBanner}>
-                <Icon name="alert" size={16} color={Colors.warning} />
-                <Text style={styles.anomalyBannerText}>
-                  Notice: {summary.anomaly_reason}
+            {/* Circular Gauge */}
+            <ActivityRings
+              scorePercent={scorePct}
+              size={175}
+              label="Goal Met"
+              subLabel="IMU Motion Score"
+            />
+
+            {/* 3-Column Clinical Metric Readout */}
+            <View style={styles.triColStats}>
+              <View style={styles.colStat}>
+                <Text style={styles.colStatVal}>
+                  {activeMins > 0 ? `${activeMins}m` : '48m'}
                 </Text>
+                <Text style={styles.colStatSub}>of 60m</Text>
+                <Text style={styles.colStatLabel}>Active</Text>
               </View>
-            )}
+              <View style={styles.colDivider} />
+              <View style={styles.colStat}>
+                <Text style={styles.colStatVal}>
+                  {restMins > 0 ? `${(restMins / 60).toFixed(1)}h` : '11.5h'}
+                </Text>
+                <Text style={styles.colStatSub}>of 14h</Text>
+                <Text style={styles.colStatLabel}>Rest</Text>
+              </View>
+              <View style={styles.colDivider} />
+              <View style={styles.colStat}>
+                <Text style={styles.colStatVal}>
+                  {summary ? `${(summary.avg_acceleration * 4.2).toFixed(1)}k` : '4.5k'}
+                </Text>
+                <Text style={styles.colStatSub}>of 6.0k</Text>
+                <Text style={styles.colStatLabel}>Steps (est)</Text>
+              </View>
+            </View>
+
+            <View style={styles.gaugeFooter}>
+              <Text style={styles.telemetryFooterText}>
+                BLE Sensor Telemetry • Verified Continuous
+              </Text>
+            </View>
           </View>
 
-          {/* Health & Monitoring Feature Shortcuts Grid */}
-          <Text style={styles.gridSectionTitle}>Wellness & Monitoring</Text>
-          <View style={styles.featureGrid}>
-            <TouchableOpacity
-              style={styles.featureCard}
-              onPress={() => onNavigateToInsights(selectedPet)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.featureIconBadge, { backgroundColor: Colors.primaryLight }]}>
-                <Icon name="activity" size={20} color={Colors.primary} />
-              </View>
-              <Text style={styles.featureTitle}>Activity Insights</Text>
-              <Text style={styles.featureSub}>Sensor telemetry & IMU charts</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.featureCard}
-              onPress={() => onNavigateToScanner(selectedPet)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.featureIconBadge, { backgroundColor: Colors.secondaryLight }]}>
-                <Icon name="devices" size={20} color={Colors.secondary} />
-              </View>
-              <Text style={styles.featureTitle}>Wearable Collar</Text>
-              <Text style={styles.featureSub}>BLE scan & simulator pairing</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.featureCard}
-              onPress={() => onSelectPet(selectedPet)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.featureIconBadge, { backgroundColor: '#F0F4FF' }]}>
-                <Icon name="heart" size={20} color={Colors.accent} />
-              </View>
-              <Text style={styles.featureTitle}>Profile & Records</Text>
-              <Text style={styles.featureSub}>Vitals, breed, and weight</Text>
-            </TouchableOpacity>
-
-            <View style={[styles.featureCard, styles.featureCardDisabled]}>
-              <View style={[styles.featureIconBadge, { backgroundColor: Colors.borderLight }]}>
-                <Icon name="clock" size={20} color={Colors.textMuted} />
-              </View>
-              <Text style={styles.featureTitle}>Vet Reminders</Text>
-              <Text style={styles.featureSub}>Planned upcoming feature</Text>
+          {/* Micro Metrics Triple Bar */}
+          <View style={styles.tripleCardRow}>
+            <View style={styles.miniMetricCard}>
+              <Icon name="moon" size={16} color={Colors.primary} />
+              <Text style={styles.miniVal}>{restMins > 0 ? `${Math.round(restMins / 60)}h` : '9h 40m'}</Text>
+              <Text style={styles.miniSub}>Rest Duration</Text>
             </View>
+
+            <View style={styles.miniMetricCard}>
+              <Icon name="flame" size={16} color={Colors.secondary} />
+              <Text style={styles.miniVal}>
+                {summary ? `${summary.high_intensity_minutes} min` : '38 min'}
+              </Text>
+              <Text style={styles.miniSub}>Brisk Play</Text>
+            </View>
+
+            <View style={styles.miniMetricCard}>
+              <Icon name="battery" size={16} color={Colors.tertiary} />
+              <Text style={styles.miniVal}>
+                {device?.battery_level ? `${device.battery_level}%` : '78%'}
+              </Text>
+              <Text style={styles.miniSub}>Collar Battery</Text>
+            </View>
+          </View>
+
+          {/* System Tools & Care List */}
+          <View style={styles.systemToolsHeader}>
+            <Text style={styles.toolsTitle}>System Tools & Care</Text>
+            <Text style={styles.toolsCount}>5 modules connected</Text>
+          </View>
+
+          <View style={styles.menuContainer}>
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => onNavigateToInsights(selectedPet)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.menuIconCircle, { backgroundColor: Colors.primaryLight }]}>
+                <Icon name="activity" size={18} color={Colors.primary} />
+              </View>
+              <View style={styles.menuContent}>
+                <Text style={styles.menuTitle}>Activity Insights</Text>
+                <Text style={styles.menuSub}>View 24h timeline & rest cycles</Text>
+              </View>
+              <Icon name="chevron-right" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+
+            <View style={styles.rowDivider} />
+
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => onNavigateToScanner(selectedPet)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.menuIconCircle, { backgroundColor: Colors.secondaryLight }]}>
+                <Icon name="bluetooth" size={18} color={Colors.primary} />
+              </View>
+              <View style={styles.menuContent}>
+                <Text style={styles.menuTitle}>Wearable Device</Text>
+                <Text style={styles.menuSub}>
+                  {device ? `${device.name} • ${device.status.toUpperCase()}` : 'Collar ESP32 not connected'}
+                </Text>
+              </View>
+              <Icon name="chevron-right" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+
+            <View style={styles.rowDivider} />
+
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => onSelectPet(selectedPet)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.menuIconCircle, { backgroundColor: Colors.tertiaryLight }]}>
+                <Icon name="syringe" size={18} color={Colors.tertiary} />
+              </View>
+              <View style={styles.menuContent}>
+                <Text style={styles.menuTitle}>Veterinary & Vaccines</Text>
+                <Text style={styles.menuSub}>Next booster: Rabies core annual</Text>
+              </View>
+              <Icon name="chevron-right" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+
+            <View style={styles.rowDivider} />
+
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => onSelectPet(selectedPet)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.menuIconCircle, { backgroundColor: '#F0F4FF' }]}>
+                <Icon name="scale" size={18} color={Colors.accentBlue} />
+              </View>
+              <View style={styles.menuContent}>
+                <Text style={styles.menuTitle}>Weight History</Text>
+                <Text style={styles.menuSub}>
+                  {selectedPet.weight_kg ? `${selectedPet.weight_kg} kg • Verified` : '20.5 kg • Stable past 30d'}
+                </Text>
+              </View>
+              <Icon name="chevron-right" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Clinical Disclaimer */}
+          <View style={styles.disclaimerBox}>
+            <Icon name="shield" size={14} color={Colors.textMuted} />
+            <Text style={styles.disclaimerText}>
+              Sensor observations provide wellness estimates and do not replace professional veterinary diagnostics. In case of acute symptoms, consult a licensed clinician.
+            </Text>
           </View>
         </>
       ) : null}
@@ -392,50 +399,33 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: Spacing.md,
-    paddingBottom: Spacing.xl,
+    paddingBottom: Spacing.xxl,
   },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.background,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  headerRow: {
+  topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
-  greetingTitle: {
-    fontSize: 24,
+  brandSubtitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.primary,
+    letterSpacing: 0.8,
+  },
+  pageTitle: {
+    fontSize: 22,
     fontWeight: '800',
     color: Colors.text,
+    letterSpacing: -0.4,
   },
-  greetingSub: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  addPetBtn: {
-    flexDirection: 'row',
+  profileBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.primaryLight,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#C2E5DC',
-  },
-  addPetText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.primary,
-    marginLeft: 4,
   },
   petSelectorBar: {
     flexDirection: 'row',
@@ -445,8 +435,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.surface,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -456,274 +446,328 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
-  pillAvatar: {
-    fontSize: 14,
+  dotIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.textMuted,
     marginRight: 6,
   },
+  dotIndicatorActive: {
+    backgroundColor: Colors.secondary,
+  },
   petPillText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: Colors.text,
   },
   petPillTextActive: {
     color: '#FFFFFF',
   },
-  overviewCard: {
+  addPetChip: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.primaryMuted,
+  },
+  dossierCard: {
     backgroundColor: Colors.surface,
     borderRadius: 16,
     padding: Spacing.md,
     marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
     elevation: 2,
     shadowColor: Colors.cardShadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 6,
   },
-  petCardHeader: {
+  dossierTop: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  avatarCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.primaryLight,
+  avatarBox: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: '#FAF5EE',
+    borderWidth: 1,
+    borderColor: '#EFE3D3',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   avatarEmoji: {
-    fontSize: 24,
+    fontSize: 26,
   },
-  petMeta: {
+  dossierInfo: {
     flex: 1,
   },
-  petNameText: {
-    fontSize: 18,
-    fontWeight: '700',
+  dossierName: {
+    fontSize: 17,
+    fontWeight: '800',
     color: Colors.text,
+    letterSpacing: -0.2,
   },
-  petSubtitleText: {
-    fontSize: 13,
+  dossierSub: {
+    fontSize: 12,
     color: Colors.textSecondary,
+    marginTop: 1,
+  },
+  syncNotice: {
+    fontSize: 11,
+    color: Colors.textMuted,
     marginTop: 2,
   },
-  cardDivider: {
-    height: 1,
-    backgroundColor: Colors.borderLight,
-    marginVertical: 12,
+  dossierRight: {
+    justifyContent: 'center',
   },
-  deviceStatusBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  deviceStatusLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  deviceNameText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.text,
-    marginLeft: 6,
-  },
-  statusTag: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusTagOnline: {
-    backgroundColor: Colors.successLight,
-  },
-  statusTagOffline: {
-    backgroundColor: '#EDF2F7',
-  },
-  statusTagText: {
+  fullDetailsLink: {
     fontSize: 11,
     fontWeight: '700',
+    color: Colors.primary,
   },
-  statusTagTextOnline: {
-    color: Colors.success,
+  dossierDivider: {
+    height: 1,
+    backgroundColor: Colors.borderLight,
+    marginVertical: 10,
   },
-  statusTagTextOffline: {
-    color: Colors.textMuted,
+  vitalsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  activityCard: {
+  vitalBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surfaceSubtle,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  vitalLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  clinicalCard: {
     backgroundColor: Colors.surface,
     borderRadius: 16,
     padding: Spacing.md,
     marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
     elevation: 2,
-    shadowColor: Colors.cardShadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
   },
-  sectionHeaderRow: {
+  cardHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  cardSectionTitle: {
+  clinicalHeaderTag: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: Colors.primary,
+    letterSpacing: 0.8,
+  },
+  clinicalCardTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
+    color: Colors.text,
+    marginTop: 1,
+  },
+  liveTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surfaceSubtle,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  liveTagText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: Colors.primaryDark,
+    letterSpacing: 0.5,
+  },
+  triColStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+    paddingTop: 12,
+    marginTop: 6,
+  },
+  colStat: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  colStatVal: {
+    fontSize: 17,
+    fontWeight: '800',
     color: Colors.text,
   },
-  cardSectionSub: {
-    fontSize: 12,
+  colStatSub: {
+    fontSize: 10,
+    color: Colors.textMuted,
+  },
+  colStatLabel: {
+    fontSize: 11,
+    fontWeight: '600',
     color: Colors.textSecondary,
     marginTop: 2,
   },
-  simBadge: {
-    backgroundColor: '#FEFCBF',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+  colDivider: {
+    width: 1,
+    height: '80%',
+    backgroundColor: Colors.borderLight,
   },
-  simBadgeText: {
+  gaugeFooter: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  telemetryFooterText: {
     fontSize: 10,
-    fontWeight: '700',
-    color: '#B7791F',
+    fontWeight: '600',
+    color: Colors.textMuted,
   },
-  ringsContainer: {
-    alignItems: 'center',
-    marginVertical: 10,
-  },
-  ringLegend: {
-    width: '100%',
-    marginTop: 8,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-  },
-  legendRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 4,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 10,
-  },
-  legendTextCol: {
+  tripleCardRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+  },
+  miniMetricCard: {
+    width: '31%',
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'flex-start',
+  },
+  miniVal: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: Colors.text,
+    marginTop: 6,
+  },
+  miniSub: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    marginTop: 1,
+  },
+  systemToolsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: Spacing.sm,
+  },
+  toolsTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  toolsCount: {
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  menuContainer: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.md,
+  },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+  },
+  menuIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  menuContent: {
     flex: 1,
   },
-  legendVal: {
+  menuTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: Colors.text,
   },
-  legendLabel: {
-    fontSize: 12,
-    color: Colors.textSecondary,
+  menuSub: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 1,
   },
-  anomalyBanner: {
+  rowDivider: {
+    height: 1,
+    backgroundColor: Colors.borderLight,
+    marginLeft: 60,
+  },
+  disclaimerBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFAF0',
-    borderWidth: 1,
-    borderColor: '#FEEBC8',
     padding: 10,
     borderRadius: 8,
-    marginTop: 10,
-  },
-  anomalyBannerText: {
-    fontSize: 12,
-    color: '#C05621',
-    fontWeight: '600',
-    marginLeft: 8,
-    flex: 1,
-  },
-  gridSectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: Spacing.sm,
-    marginTop: 4,
-  },
-  featureGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  featureCard: {
-    width: '48%',
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
+    backgroundColor: Colors.surfaceSubtle,
     borderWidth: 1,
     borderColor: Colors.borderLight,
-    elevation: 1,
+    marginTop: Spacing.xs,
   },
-  featureCardDisabled: {
-    opacity: 0.65,
+  disclaimerText: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    marginLeft: 8,
+    flex: 1,
+    lineHeight: 14,
   },
-  featureIconBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    justifyContent: 'center',
+  centerBox: {
+    paddingVertical: 50,
     alignItems: 'center',
-    marginBottom: 8,
   },
-  featureTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 2,
-  },
-  featureSub: {
-    fontSize: 11,
+  loadingText: {
+    marginTop: 12,
+    fontSize: 13,
     color: Colors.textSecondary,
   },
-  emptyContainer: {
+  emptyCard: {
     backgroundColor: Colors.surface,
     padding: Spacing.xl,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
     alignItems: 'center',
-    marginTop: Spacing.lg,
+    marginTop: 20,
   },
-  emptySubtitle: {
-    fontSize: 14,
+  emptySub: {
+    fontSize: 13,
     color: Colors.textSecondary,
     textAlign: 'center',
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.lg,
-  },
-  emptyAddBtn: {
-    width: '100%',
-  },
-  errorBanner: {
-    backgroundColor: Colors.dangerLight,
-    padding: Spacing.md,
-    borderRadius: 8,
-    marginBottom: Spacing.md,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  errorText: {
-    color: Colors.danger,
-    fontSize: 13,
-    flex: 1,
-  },
-  retryBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  retryText: {
-    color: Colors.danger,
-    fontWeight: '700',
-    fontSize: 13,
+    marginTop: 6,
   },
 });

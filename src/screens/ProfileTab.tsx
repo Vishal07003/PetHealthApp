@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,272 +8,622 @@ import {
   Alert,
 } from 'react-native';
 import { Colors, Spacing, Typography } from '../theme/theme';
-import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
 import { KeyboardAwareContainer } from '../components/KeyboardAwareContainer';
 import { useAuth } from '../context/AuthContext';
-import { AuthService } from '../services/PetHealthService';
+import { PetService } from '../services/PetHealthService';
+import { Pet } from '../types/api';
 
 interface ProfileTabProps {
-  onBack?: () => void;
+  onNavigateToPetSelect?: () => void;
+  onNavigateToScanner?: (pet: Pet) => void;
+  onNavigateToInsights?: (pet: Pet) => void;
 }
 
-export const ProfileTab: React.FC<ProfileTabProps> = () => {
-  const { user, setUser, logout } = useAuth();
-  const [firstName, setFirstName] = useState(user?.first_name || '');
-  const [lastName, setLastName] = useState(user?.last_name || '');
-  const [email, setEmail] = useState(user?.email || '');
-  const [loading, setLoading] = useState(false);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+export const ProfileTab: React.FC<ProfileTabProps> = ({
+  onNavigateToScanner,
+  onNavigateToInsights,
+}) => {
+  const { user, logout } = useAuth();
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
 
-  const handleUpdate = async () => {
-    setLoading(true);
-    setSuccessMsg(null);
-    try {
-      const updated = await AuthService.updateProfile({
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        email: email.trim(),
-      });
-      setUser(updated);
-      setSuccessMsg('Account profile updated successfully.');
-    } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.detail || 'Failed to update profile.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    PetService.listPets()
+      .then((res) => {
+        setPets(res);
+        if (res.length > 0) setSelectedPet(res[0]);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to log out of PetHealth?', [
+    Alert.alert('Sign Out', 'Sign out of Pet Health System?', [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: logout,
-      },
+      { text: 'Sign Out Account', style: 'destructive', onPress: logout },
     ]);
   };
 
-  // Masked email for security
-  const maskedEmail = (em: string) => {
-    if (!em || !em.includes('@')) return em;
-    const [name, domain] = em.split('@');
-    return `${name.slice(0, 2)}***@${domain}`;
-  };
+  const pet = selectedPet;
 
   return (
-    <KeyboardAwareContainer contentContainerStyle={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={Typography.titleLarge}>Account & Settings</Text>
-        <Text style={styles.headerSub}>Owner preferences and pet security</Text>
-      </View>
-
-      {/* User Hero Card */}
-      <View style={styles.userCard}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarInitial}>
-            {(user?.username?.[0] || 'U').toUpperCase()}
-          </Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+      {/* Top Clinical Header */}
+      <View style={styles.topBar}>
+        <View>
+          <Text style={styles.brandSubtitle}>PET HEALTH SYSTEM</Text>
+          <Text style={styles.pageTitle}>Profile</Text>
         </View>
-        <View style={styles.userMeta}>
-          <Text style={styles.fullName}>
-            {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : user?.username}
-          </Text>
-          <Text style={styles.usernameTag}>@{user?.username}</Text>
-          <Text style={styles.maskedEmailText}>{maskedEmail(user?.email || '')}</Text>
+        <View style={styles.iconBadge}>
+          <Icon name="profile" size={18} color="#FFFFFF" />
         </View>
       </View>
 
-      {!!successMsg && (
-        <View style={styles.successBanner}>
-          <Icon name="check" size={16} color={Colors.success} />
-          <Text style={styles.successText}>{successMsg}</Text>
+      {/* Patient Profile Hero Card */}
+      <View style={styles.profileHeroCard}>
+        <View style={styles.heroTop}>
+          <View style={styles.avatarBox}>
+            <Text style={styles.avatarEmoji}>
+              {pet?.species === 'cat' ? '🐱' : pet?.species === 'dog' ? '🐶' : '🐾'}
+            </Text>
+          </View>
+          <View style={styles.heroInfo}>
+            <View style={styles.nameRow}>
+              <Text style={styles.patientName}>{pet?.name || 'Cooper'}</Text>
+              <View style={styles.activeTag}>
+                <Text style={styles.activeTagText}>● ACTIVE</Text>
+              </View>
+            </View>
+            <Text style={styles.patientBreed}>
+              {pet?.species === 'dog' ? 'Golden Retriever • Canine' : 'Feline • Domestic'}
+            </Text>
+            <Text style={styles.patientAge}>3 yrs 4 mos • Male (Neutered)</Text>
+          </View>
         </View>
-      )}
 
-      {/* Edit Profile Form */}
-      <View style={styles.formCard}>
-        <Text style={styles.cardHeaderTitle}>Profile Information</Text>
+        {/* Microchip RFID Bar */}
+        <View style={styles.microchipBar}>
+          <Text style={styles.microchipTag}>MICROCHIP RFID</Text>
+          <Text style={styles.microchipVal}>{pet?.microchip_number || '985141002341992'}</Text>
+        </View>
 
-        <Input
-          label="First Name"
-          value={firstName}
-          onChangeText={setFirstName}
-        />
-        <Input
-          label="Last Name"
-          value={lastName}
-          onChangeText={setLastName}
-        />
-        <Input
-          label="Email Address"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-        />
+        {/* Stats Row */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCol}>
+            <Text style={styles.statVal}>{pet?.weight_kg ? `${pet.weight_kg} kg` : '28.5 kg'}</Text>
+            <Text style={styles.statLbl}>Weight</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statCol}>
+            <Text style={styles.statVal}>{pet?.date_of_birth || 'Nov 12 2021'}</Text>
+            <Text style={styles.statLbl}>Birth Date</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statCol}>
+            <Text style={styles.statVal}>{pet?.breed || 'Golden'}</Text>
+            <Text style={styles.statLbl}>Coat Standard</Text>
+          </View>
+        </View>
 
-        <Button
-          title="Save Changes"
-          onPress={handleUpdate}
-          loading={loading}
-          style={styles.saveBtn}
-        />
+        {/* Wearable Collar CTA */}
+        <TouchableOpacity
+          style={styles.pairCollarBtn}
+          onPress={() => pet && onNavigateToScanner && onNavigateToScanner(pet)}
+          activeOpacity={0.8}
+        >
+          <Icon name="devices" size={16} color="#FFFFFF" />
+          <Text style={styles.pairCollarText}>Pair Wearable Collar</Text>
+        </TouchableOpacity>
+
+        {/* Micro Action Buttons */}
+        <View style={styles.microBtnRow}>
+          <TouchableOpacity
+            style={styles.microBtn}
+            onPress={() => pet && onNavigateToInsights && onNavigateToInsights(pet)}
+          >
+            <Icon name="activity" size={14} color={Colors.primary} />
+            <Text style={styles.microBtnText}>Activity Sim</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.microBtn}
+            onPress={() => Alert.alert('Edit Dossier', 'Update pet vital statistics.')}
+          >
+            <Icon name="file-text" size={14} color={Colors.primary} />
+            <Text style={styles.microBtnText}>Edit Dossier</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* App Preferences & Info Card */}
-      <View style={styles.settingsCard}>
-        <Text style={styles.cardHeaderTitle}>Application Info</Text>
+      {/* Clinical Roadmap (Vaccines & Appointments) */}
+      <View style={styles.roadmapHeader}>
+        <Text style={styles.roadmapTitle}>Clinical Roadmap</Text>
+        <Text style={styles.roadmapTag}>UP TO DATE</Text>
+      </View>
 
-        <View style={styles.settingRow}>
-          <Text style={styles.settingLabel}>Environment</Text>
-          <Text style={styles.settingValue}>Development & Testing</Text>
+      <View style={styles.roadmapCard}>
+        <View style={styles.roadmapItem}>
+          <View style={[styles.dotCircle, { backgroundColor: Colors.primaryLight }]}>
+            <Icon name="syringe" size={14} color={Colors.primary} />
+          </View>
+          <View style={styles.roadmapContent}>
+            <Text style={styles.itemTitle}>Rabies Core Vaccine</Text>
+            <Text style={styles.itemSub}>Lot #RV-8820 • Annual booster</Text>
+          </View>
+          <Text style={styles.itemDate}>Nov 18 2026</Text>
         </View>
 
-        <View style={styles.settingRow}>
-          <Text style={styles.settingLabel}>Version</Text>
-          <Text style={styles.settingValue}>1.0.0 (Build 2026.10)</Text>
+        <View style={styles.roadmapDivider} />
+
+        <View style={styles.roadmapItem}>
+          <View style={[styles.dotCircle, { backgroundColor: Colors.tertiaryLight }]}>
+            <Icon name="pill" size={14} color={Colors.tertiary} />
+          </View>
+          <View style={styles.roadmapContent}>
+            <Text style={styles.itemTitle}>Deworming Treatment</Text>
+            <Text style={styles.itemSub}>Milbemycin broad spectrum</Text>
+          </View>
+          <View style={styles.dueBadge}>
+            <Text style={styles.dueBadgeText}>Due in 14d</Text>
+          </View>
         </View>
 
-        <View style={styles.settingRow}>
-          <Text style={styles.settingLabel}>Telemetry Storage</Text>
-          <Text style={styles.settingValue}>PostgreSQL Timeseries</Text>
-        </View>
+        <View style={styles.roadmapDivider} />
 
-        <View style={styles.settingRow}>
-          <Text style={styles.settingLabel}>Hardware Protocol</Text>
-          <Text style={styles.settingValue}>BLE 4.2+ / Wi-Fi IMU</Text>
+        <View style={styles.roadmapItem}>
+          <View style={[styles.dotCircle, { backgroundColor: '#F0F4FF' }]}>
+            <Icon name="clock" size={14} color={Colors.accentBlue} />
+          </View>
+          <View style={styles.roadmapContent}>
+            <Text style={styles.itemTitle}>Annual Wellness Check</Text>
+            <Text style={styles.itemSub}>Dr. Sarah Jenkins • Valley Veterinary</Text>
+          </View>
+          <Text style={styles.itemDate}>Dec 2 10:30 AM</Text>
         </View>
       </View>
 
-      {/* Sign Out Button */}
-      <Button
-        title="Sign Out"
-        variant="outline"
+      {/* Owner Account Section */}
+      <View style={styles.ownerHeader}>
+        <Text style={styles.ownerTitle}>Owner Account</Text>
+        <Text style={styles.ownerTag}>STAFF / CL-1218</Text>
+      </View>
+
+      <View style={styles.ownerCard}>
+        <View style={styles.ownerRow}>
+          <View style={styles.ownerAvatarBadge}>
+            <Text style={styles.ownerInitial}>NT</Text>
+          </View>
+          <View style={styles.ownerInfo}>
+            <Text style={styles.ownerName}>
+              {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : 'NERD-TECH Veterinary Admin'}
+            </Text>
+            <Text style={styles.ownerEmail}>{user?.email || 'admin@nerd-tech.local'}</Text>
+          </View>
+          <Icon name="chevron-right" size={16} color={Colors.textMuted} />
+        </View>
+      </View>
+
+      {/* Application Preferences & Settings */}
+      <Text style={styles.settingsSectionTitle}>APPLICATION PREFERENCES</Text>
+      <View style={styles.settingsGroup}>
+        <View style={styles.settingItem}>
+          <Text style={styles.settingLbl}>Push Notifications</Text>
+          <Text style={styles.settingVal}>Enabled</Text>
+        </View>
+        <View style={styles.roadmapDivider} />
+        <View style={styles.settingItem}>
+          <Text style={styles.settingLbl}>Biometric Unlock</Text>
+          <Text style={styles.settingVal}>Active</Text>
+        </View>
+        <View style={styles.roadmapDivider} />
+        <View style={styles.settingItem}>
+          <Text style={styles.settingLbl}>Theme</Text>
+          <Text style={styles.settingVal}>System Light</Text>
+        </View>
+      </View>
+
+      {/* Telemetry & Diagnostics */}
+      <Text style={styles.settingsSectionTitle}>TELEMETRY & DIAGNOSTICS</Text>
+      <View style={styles.settingsGroup}>
+        <TouchableOpacity
+          style={styles.settingItem}
+          onPress={() => Alert.alert('Export CSV', 'Raw accelerometer CSV ready for download.')}
+        >
+          <Text style={styles.settingLbl}>Export Telemetry Data (CSV)</Text>
+          <Icon name="chevron-right" size={14} color={Colors.textMuted} />
+        </TouchableOpacity>
+        <View style={styles.roadmapDivider} />
+        <TouchableOpacity
+          style={styles.settingItem}
+          onPress={() => Alert.alert('Cache Cleared', 'Local telemetry cache reset.')}
+        >
+          <Text style={styles.settingLbl}>Clear Local Cache</Text>
+          <Text style={styles.settingVal}>48.2 MB</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Sign Out Action */}
+      <TouchableOpacity
+        style={styles.signOutBtn}
         onPress={handleLogout}
-        style={styles.logoutBtn}
-      />
-    </KeyboardAwareContainer>
+        activeOpacity={0.8}
+      >
+        <Text style={styles.signOutText}>Sign Out Account</Text>
+      </TouchableOpacity>
+
+      <View style={styles.appFooter}>
+        <Text style={styles.footerVersion}>Pet Health System v1.0 (Build 2026.10)</Text>
+        <Text style={styles.footerTech}>React Native CLI + Android Target 34</Text>
+      </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     backgroundColor: Colors.background,
+  },
+  scrollContent: {
     padding: Spacing.md,
-    paddingBottom: Spacing.xl,
+    paddingBottom: Spacing.xxl,
   },
-  header: {
-    marginBottom: Spacing.md,
-  },
-  headerSub: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  userCard: {
+  topBar: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.sm,
+  },
+  brandSubtitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.primary,
+    letterSpacing: 0.8,
+  },
+  pageTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.text,
+    letterSpacing: -0.4,
+  },
+  iconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
     alignItems: 'center',
+  },
+  profileHeroCard: {
     backgroundColor: Colors.surface,
     borderRadius: 16,
     padding: Spacing.md,
-    marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
+    marginBottom: Spacing.md,
     elevation: 2,
   },
-  avatarCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.primaryLight,
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarBox: {
+    width: 58,
+    height: 58,
+    borderRadius: 14,
+    backgroundColor: '#FAF5EE',
+    borderWidth: 1,
+    borderColor: '#EFE3D3',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 12,
   },
-  avatarInitial: {
-    fontSize: 24,
+  avatarEmoji: {
+    fontSize: 30,
+  },
+  heroInfo: {
+    flex: 1,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  patientName: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  activeTag: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  activeTagText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: Colors.success,
+  },
+  patientBreed: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 1,
+  },
+  patientAge: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 1,
+  },
+  microchipBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.surfaceSubtle,
+    padding: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    marginTop: 10,
+  },
+  microchipTag: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: Colors.textMuted,
+  },
+  microchipVal: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+    paddingVertical: 10,
+    marginTop: 10,
+  },
+  statCol: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statVal: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  statLbl: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: Colors.borderLight,
+  },
+  pairCollarBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginTop: 6,
+  },
+  pairCollarText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginLeft: 6,
+  },
+  microBtnRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  microBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.surfaceSubtle,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginHorizontal: 3,
+  },
+  microBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginLeft: 4,
+  },
+  roadmapHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: Spacing.sm,
+  },
+  roadmapTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  roadmapTag: {
+    fontSize: 9,
     fontWeight: '800',
     color: Colors.primary,
   },
-  userMeta: {
-    flex: 1,
+  roadmapCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.md,
   },
-  fullName: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  usernameTag: {
-    fontSize: 13,
-    color: Colors.primary,
-    fontWeight: '600',
-    marginTop: 1,
-  },
-  maskedEmailText: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  successBanner: {
+  roadmapItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.successLight,
     padding: 12,
-    borderRadius: 8,
-    marginBottom: Spacing.md,
   },
-  successText: {
-    color: Colors.success,
-    fontSize: 13,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  formCard: {
-    backgroundColor: Colors.surface,
+  dotCircle: {
+    width: 32,
+    height: 32,
     borderRadius: 16,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
   },
-  cardHeaderTitle: {
-    fontSize: 15,
+  roadmapContent: {
+    flex: 1,
+  },
+  itemTitle: {
+    fontSize: 13,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: Spacing.sm,
   },
-  saveBtn: {
-    marginTop: Spacing.sm,
+  itemSub: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 1,
   },
-  settingsCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-  },
-  settingLabel: {
-    fontSize: 13,
+  itemDate: {
+    fontSize: 11,
+    fontWeight: '600',
     color: Colors.textSecondary,
   },
-  settingValue: {
-    fontSize: 13,
-    fontWeight: '600',
+  dueBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  dueBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#D97706',
+  },
+  roadmapDivider: {
+    height: 1,
+    backgroundColor: Colors.borderLight,
+    marginLeft: 54,
+  },
+  ownerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: Spacing.sm,
+  },
+  ownerTitle: {
+    fontSize: 15,
+    fontWeight: '800',
     color: Colors.text,
   },
-  logoutBtn: {
-    marginTop: Spacing.xs,
-    borderColor: Colors.danger,
+  ownerTag: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: Colors.textMuted,
+  },
+  ownerCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 12,
+    marginBottom: Spacing.md,
+  },
+  ownerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ownerAvatarBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.primaryDark,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  ownerInitial: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  ownerInfo: {
+    flex: 1,
+  },
+  ownerName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  ownerEmail: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 1,
+  },
+  settingsSectionTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.textMuted,
+    letterSpacing: 0.6,
+    marginTop: 6,
+    marginBottom: Spacing.xs,
+  },
+  settingsGroup: {
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.md,
+  },
+  settingItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+  },
+  settingLbl: {
+    fontSize: 13,
+    color: Colors.text,
+    fontWeight: '500',
+  },
+  settingVal: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  signOutBtn: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 6,
+    marginBottom: Spacing.md,
+  },
+  signOutText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.danger,
+  },
+  appFooter: {
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+  },
+  footerVersion: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textMuted,
+  },
+  footerTech: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    marginTop: 2,
   },
 });

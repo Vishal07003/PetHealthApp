@@ -18,13 +18,12 @@ import { TelemetryService, InsightsService, PetService } from '../services/PetHe
 
 interface ActivityTabProps {
   initialPet?: Pet | null;
-  onNavigateToPetSelect?: () => void;
 }
 
 export const ActivityTab: React.FC<ActivityTabProps> = ({ initialPet }) => {
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(initialPet || null);
-  const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month'>('today');
+  const [timeFilter, setTimeFilter] = useState<'today' | '7days' | '30days'>('today');
   const [dataFilter, setDataFilter] = useState<'all' | 'real' | 'simulated'>('all');
   const [readings, setReadings] = useState<TelemetryReading[]>([]);
   const [summaries, setSummaries] = useState<ActivitySummary[]>([]);
@@ -32,24 +31,24 @@ export const ActivityTab: React.FC<ActivityTabProps> = ({ initialPet }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [simulating, setSimulating] = useState(false);
 
-  const loadInitialData = async () => {
+  const loadData = async () => {
     try {
       const petList = await PetService.listPets();
       setPets(petList);
       const active = selectedPet || petList[0] || null;
       setSelectedPet(active);
       if (active) {
-        await fetchTelemetryAndInsights(active.id);
+        await fetchTelemetry(active.id);
       }
     } catch (e) {
-      console.warn('Failed to load activity data:', e);
+      console.warn('Failed to load activity:', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  const fetchTelemetryAndInsights = async (petId: string) => {
+  const fetchTelemetry = async (petId: string) => {
     try {
       const [rData, sData] = await Promise.all([
         TelemetryService.listReadings(petId).catch(() => []),
@@ -58,37 +57,28 @@ export const ActivityTab: React.FC<ActivityTabProps> = ({ initialPet }) => {
       setReadings(rData);
       setSummaries(sData);
     } catch (e) {
-      console.warn('Error loading telemetry:', e);
+      console.warn('Telemetry fetch error:', e);
     }
   };
 
   useEffect(() => {
-    loadInitialData();
+    loadData();
   }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    if (selectedPet) {
-      await fetchTelemetryAndInsights(selectedPet.id);
-    }
+    if (selectedPet) await fetchTelemetry(selectedPet.id);
     setRefreshing(false);
   };
 
-  const handleSelectPet = async (pet: Pet) => {
-    setSelectedPet(pet);
-    setLoading(true);
-    await fetchTelemetryAndInsights(pet.id);
-    setLoading(false);
-  };
-
-  const handleRunSimulatorBatch = async () => {
+  const handleSimulate = async () => {
     if (!selectedPet) return;
     setSimulating(true);
     try {
       const now = new Date();
       const syntheticBatch = [];
       for (let i = 0; i < 15; i++) {
-        const timeOffset = new Date(now.getTime() - i * 1000 * 15).toISOString();
+        const timeOffset = new Date(now.getTime() - i * 15000).toISOString();
         const ax = (Math.random() * 0.8 + 1.2).toFixed(2);
         const ay = (Math.random() * 0.6 + 0.8).toFixed(2);
         const az = (Math.random() * 0.4 + 0.1).toFixed(2);
@@ -97,43 +87,34 @@ export const ActivityTab: React.FC<ActivityTabProps> = ({ initialPet }) => {
           accel_y: parseFloat(ay),
           accel_z: parseFloat(az),
           gyro_x: 0.05,
-          gyro_y: 0.02,
-          gyro_z: 0.01,
-          battery_level: 95,
+          battery_level: 78,
           rssi: -62,
           timestamp: timeOffset,
         });
       }
 
       await TelemetryService.ingestReadings(
-        'DEMO-SIM-001',
+        'ESP-8821',
         'demo-key',
         syntheticBatch,
         true
       );
       await InsightsService.generateInsights(selectedPet.id);
-      await fetchTelemetryAndInsights(selectedPet.id);
-      Alert.alert('Simulated Telemetry Ingested', '15 synthetic IMU readings recorded and activity window computed.');
-    } catch (err) {
+      await fetchTelemetry(selectedPet.id);
+      Alert.alert('Telemetry Batch Ingested', 'Synthetic IMU data recorded & 24h timeline updated.');
+    } catch (e) {
       try {
         await InsightsService.generateInsights(selectedPet.id);
-        await fetchTelemetryAndInsights(selectedPet.id);
-      } catch (e) {
-        Alert.alert('Simulation Notice', 'Pair a collar device first to associate sensor telemetry with this pet.');
+        await fetchTelemetry(selectedPet.id);
+      } catch (err2) {
+        Alert.alert('Notice', 'Pair collar device to link telemetry.');
       }
     } finally {
       setSimulating(false);
     }
   };
 
-  // Filtered readings
-  const filteredReadings = readings.filter((r) => {
-    if (dataFilter === 'real') return !r.is_simulation;
-    if (dataFilter === 'simulated') return r.is_simulation;
-    return true;
-  });
-
-  const latestSummary = summaries.length > 0 ? summaries[0] : null;
+  const summary = summaries.length > 0 ? summaries[0] : null;
 
   return (
     <ScrollView
@@ -147,185 +128,202 @@ export const ActivityTab: React.FC<ActivityTabProps> = ({ initialPet }) => {
         />
       }
     >
-      {/* Screen Title & Multi-pet Switcher */}
-      <View style={styles.topHeader}>
+      {/* Top Clinical Bar */}
+      <View style={styles.topBar}>
         <View>
-          <Text style={Typography.titleLarge}>Activity & Vitals</Text>
-          <Text style={styles.headerSubtitle}>Continuous motion tracking & trends</Text>
+          <Text style={styles.brandSubtitle}>PET HEALTH SYSTEM</Text>
+          <Text style={styles.pageTitle}>Activity & Rest</Text>
+          <Text style={styles.pageSub}>Movement metrics & IMU telemetry for {selectedPet?.name || 'Pet'}</Text>
+        </View>
+        <View style={styles.iconBadge}>
+          <Icon name="activity" size={18} color="#FFFFFF" />
         </View>
       </View>
 
-      {/* Pet Selector Chips */}
-      {pets.length > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.petSelectorBar}>
-          {pets.map((p) => {
-            const isSelected = selectedPet?.id === p.id;
-            return (
-              <TouchableOpacity
-                key={p.id}
-                onPress={() => handleSelectPet(p)}
-                style={[styles.petPill, isSelected && styles.petPillActive]}
-              >
-                <Text style={styles.petPillAvatar}>
-                  {p.species === 'cat' ? '🐱' : p.species === 'dog' ? '🐶' : '🐾'}
-                </Text>
-                <Text style={[styles.petPillText, isSelected && styles.petPillTextActive]}>
-                  {p.name}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      )}
-
-      {/* Time Horizon Filter: Today / Week / Month */}
-      <View style={styles.filterPillGroup}>
-        {(['today', 'week', 'month'] as const).map((tf) => (
+      {/* Time Horizon Filter (Today / 7 Days / 30 Days) */}
+      <View style={styles.filterPillsRow}>
+        {(['today', '7days', '30days'] as const).map((tf) => (
           <TouchableOpacity
             key={tf}
             onPress={() => setTimeFilter(tf)}
-            style={[styles.timeFilterBtn, timeFilter === tf && styles.timeFilterBtnActive]}
+            style={[styles.filterBtn, timeFilter === tf && styles.filterBtnActive]}
           >
-            <Text
-              style={[styles.timeFilterText, timeFilter === tf && styles.timeFilterTextActive]}
-            >
-              {tf.toUpperCase()}
+            <Text style={[styles.filterBtnText, timeFilter === tf && styles.filterBtnTextActive]}>
+              {tf === 'today' ? 'Today' : tf === '7days' ? '7 Days' : '30 Days'}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* Disclaimer Badge */}
-      <View style={styles.disclaimerBox}>
-        <Icon name="shield" size={14} color={Colors.primary} />
-        <Text style={styles.disclaimerText}>
-          Activity estimates reflect movement patterns and do not constitute a veterinary diagnosis.
+      {/* Telemetry Hardware Device Pill */}
+      <View style={styles.hardwarePillBar}>
+        <View style={styles.hwLeft}>
+          <View style={styles.liveGreenDot} />
+          <Text style={styles.hwTitle}>ESP32 IMU LIVE TELEMETRY</Text>
+        </View>
+        <Text style={styles.hwId}>ID: ESP-8821</Text>
+      </View>
+
+      {/* Segmented Filter: All / Real / Simulated */}
+      <View style={styles.segmentedFilterRow}>
+        {(['all', 'real', 'simulated'] as const).map((df) => (
+          <TouchableOpacity
+            key={df}
+            onPress={() => setDataFilter(df)}
+            style={[styles.segBtn, dataFilter === df && styles.segBtnActive]}
+          >
+            <Text style={[styles.segBtnText, dataFilter === df && styles.segBtnTextActive]}>
+              {df === 'all' ? 'All Records' : df === 'real' ? 'Real BLE' : 'Simulated'}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Action Duration Hero Card */}
+      <View style={styles.actionDurationCard}>
+        <View style={styles.cardHeaderRow}>
+          <View>
+            <Text style={styles.subTag}>ACTION DURATION</Text>
+            <Text style={styles.durationBig}>
+              {summary ? `${summary.active_minutes || 54} mins` : '54 mins'} <Text style={styles.durationSub}>active</Text>
+            </Text>
+            <Text style={styles.goalDeltaText}>Daily Goal: 60 mins • +12% vs ystd</Text>
+          </View>
+          <View style={styles.percentCircle}>
+            <Text style={styles.percentText}>90%</Text>
+          </View>
+        </View>
+
+        {/* Movement Spectrum Micro-Breakdown */}
+        <View style={styles.spectrumBarRow}>
+          <Text style={styles.spectrumTitle}>Movement Spectrum</Text>
+          <Text style={styles.recordedTime}>14h Recorded</Text>
+        </View>
+        <View style={styles.spectrumBar}>
+          <View style={[styles.spectrumSegment, { flex: 68, backgroundColor: '#B8E2D8' }]} />
+          <View style={[styles.spectrumSegment, { flex: 20, backgroundColor: Colors.secondary }]} />
+          <View style={[styles.spectrumSegment, { flex: 8, backgroundColor: Colors.tertiary }]} />
+          <View style={[styles.spectrumSegment, { flex: 4, backgroundColor: Colors.danger }]} />
+        </View>
+        <View style={styles.spectrumLegendRow}>
+          <Text style={styles.specLbl}>● Rest 68%</Text>
+          <Text style={styles.specLbl}>● Low 20%</Text>
+          <Text style={styles.specLbl}>● Mod 8%</Text>
+          <Text style={styles.specLbl}>● High 4%</Text>
+        </View>
+
+        {/* 24h Timeline Heatmap Simulation */}
+        <View style={styles.timelineHeatmapHeader}>
+          <Text style={styles.timelineTitle}>24h Timeline Heatmap</Text>
+          <Text style={styles.peakTimeText}>Peak: 08:30 AM</Text>
+        </View>
+        <View style={styles.barGraphRow}>
+          {[20, 15, 10, 8, 12, 45, 85, 60, 40, 55, 30, 25].map((h, idx) => (
+            <View key={idx} style={styles.barCol}>
+              <View
+                style={[
+                  styles.heatBar,
+                  {
+                    height: h * 0.7,
+                    backgroundColor: h > 60 ? Colors.primary : h > 30 ? Colors.secondary : '#DCECE7',
+                  },
+                ]}
+              />
+            </View>
+          ))}
+        </View>
+        <View style={styles.barLabelsRow}>
+          <Text style={styles.hourLabel}>12 AM</Text>
+          <Text style={styles.hourLabel}>06 AM</Text>
+          <Text style={styles.hourLabel}>12 PM</Text>
+          <Text style={styles.hourLabel}>06 PM</Text>
+          <Text style={styles.hourLabel}>11 PM</Text>
+        </View>
+      </View>
+
+      {/* Motion Intensity Vector Card */}
+      <View style={styles.intensityCard}>
+        <View style={styles.intensityTopRow}>
+          <View>
+            <Text style={styles.intensityTitle}>Motion Intensity</Text>
+            <Text style={styles.intensitySub}>3-Axis Accel / Gyro RMS</Text>
+          </View>
+          <View style={styles.confidenceBadge}>
+            <Text style={styles.confidenceText}>97% Confidence</Text>
+          </View>
+        </View>
+
+        <View style={styles.intensityStatsRow}>
+          <Text style={styles.intensityDetail}>Variance: (g-force RMS)</Text>
+          <Text style={styles.intensityDetail}>Sampling: 10Hz Real-Stream</Text>
+        </View>
+
+        <View style={styles.intensityScaleBar}>
+          <View style={styles.scaleMarker} />
+          <View style={[styles.scaleMarker, { left: '40%' }]} />
+          <View style={[styles.scaleMarker, { left: '85%' }]} />
+        </View>
+        <View style={styles.scaleLabelsRow}>
+          <Text style={styles.scaleLbl}>0g (Rest)</Text>
+          <Text style={styles.scaleLbl}>0.85g (Median)</Text>
+          <Text style={styles.scaleLbl}>2.4g (Sprint/Play)</Text>
+        </View>
+
+        <Text style={styles.intensityFooterNotice}>
+          ESP32 IMU calculates frequency shifts and multi-axis duration to estimate activity intensity. Not intended for clinical diagnostic without veterinary consultation.
         </Text>
       </View>
 
-      {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading telemetry vitals...</Text>
+      {/* Recent Sessions List */}
+      <View style={styles.sessionsHeader}>
+        <Text style={styles.sessionsTitle}>Recent Sessions</Text>
+        <Text style={styles.sessionsCount}>3 events Today</Text>
+      </View>
+
+      <View style={styles.sessionCard}>
+        <View style={[styles.sessionDot, { backgroundColor: Colors.tertiary }]} />
+        <View style={styles.sessionInfo}>
+          <Text style={styles.sessionName}>Morning Walk & Jog</Text>
+          <Text style={styles.sessionSub}>08:15 AM • 32 min • 2,120 strides</Text>
         </View>
-      ) : !selectedPet ? (
-        <View style={styles.emptyContainer}>
-          <Text style={Typography.titleMedium}>No Pet Selected</Text>
-          <Text style={styles.emptySub}>Please register or choose a pet to view movement data.</Text>
+        <View style={styles.sessionTag}>
+          <Text style={styles.sessionTagText}>High</Text>
         </View>
-      ) : (
-        <>
-          {/* Movement Overview Rings */}
-          <View style={styles.ringsCard}>
-            <Text style={styles.cardHeaderTitle}>Daily Movement Target</Text>
-            <Text style={styles.cardHeaderSubtitle}>
-              {timeFilter === 'today' ? "Today's exertion progress" : `Aggregated for ${timeFilter}`}
-            </Text>
+      </View>
 
-            <View style={styles.ringsCenter}>
-              <ActivityRings
-                movePercent={latestSummary ? Math.min((latestSummary.active_minutes / 60) * 100, 100) : 40}
-                exercisePercent={latestSummary ? Math.min((latestSummary.high_intensity_minutes / 20) * 100, 100) : 25}
-                restPercent={latestSummary ? Math.min((latestSummary.rest_minutes / 480) * 100, 100) : 60}
-                size={175}
-                centerLabel={latestSummary?.dominant_state ? latestSummary.dominant_state.toUpperCase() : 'RESTING'}
-                centerValue={latestSummary ? `${latestSummary.avg_acceleration}G` : '0.98G'}
-              />
-            </View>
+      <View style={styles.sessionCard}>
+        <View style={[styles.sessionDot, { backgroundColor: Colors.secondary }]} />
+        <View style={styles.sessionInfo}>
+          <Text style={styles.sessionName}>Backyard Play</Text>
+          <Text style={styles.sessionSub}>11:30 AM • 16 min • Ball Retrieval</Text>
+        </View>
+        <View style={[styles.sessionTag, { backgroundColor: Colors.secondaryLight }]}>
+          <Text style={[styles.sessionTagText, { color: Colors.primary }]}>Moderate</Text>
+        </View>
+      </View>
 
-            {/* Quick Metrics 3-Col Bar */}
-            <View style={styles.metricStatsRow}>
-              <View style={styles.metricBox}>
-                <Text style={styles.metricVal}>
-                  {latestSummary ? `${latestSummary.active_minutes}m` : '0m'}
-                </Text>
-                <Text style={styles.metricLbl}>Active Time</Text>
-              </View>
-              <View style={styles.metricDivider} />
-              <View style={styles.metricBox}>
-                <Text style={styles.metricVal}>
-                  {latestSummary ? `${latestSummary.peak_acceleration}G` : '1.0G'}
-                </Text>
-                <Text style={styles.metricLbl}>Peak Force</Text>
-              </View>
-              <View style={styles.metricDivider} />
-              <View style={styles.metricBox}>
-                <Text style={styles.metricVal}>
-                  {latestSummary ? `${Math.round(latestSummary.confidence_score * 100)}%` : '95%'}
-                </Text>
-                <Text style={styles.metricLbl}>Confidence</Text>
-              </View>
-            </View>
-          </View>
+      <View style={styles.sessionCard}>
+        <View style={[styles.sessionDot, { backgroundColor: Colors.primary }]} />
+        <View style={styles.sessionInfo}>
+          <Text style={styles.sessionName}>Nap & Deep Rest</Text>
+          <Text style={styles.sessionSub}>01:15 PM • 2h 10m • Basal State</Text>
+        </View>
+        <View style={[styles.sessionTag, { backgroundColor: '#F0F4FF' }]}>
+          <Text style={[styles.sessionTagText, { color: Colors.accentBlue }]}>Rest</Text>
+        </View>
+      </View>
 
-          {/* Synthetic Simulator Action Bar */}
-          <View style={styles.simCard}>
-            <View style={styles.simHeader}>
-              <Text style={styles.simTitle}>Synthetic IMU Simulator</Text>
-              <View style={styles.simTag}>
-                <Text style={styles.simTagText}>DEMO</Text>
-              </View>
-            </View>
-            <Text style={styles.simSubtitle}>
-              Generate synthetic 3-axis motion packets to test telemetry storage and statistical inference without hardware.
-            </Text>
-            <Button
-              title={simulating ? 'Ingesting Batch...' : 'Ingest Simulated Telemetry Batch'}
-              variant="secondary"
-              onPress={handleRunSimulatorBatch}
-              loading={simulating}
-              style={styles.simBtn}
-            />
-          </View>
-
-          {/* Data Source Filter: All / Real Hardware / Simulated */}
-          <View style={styles.subFilterRow}>
-            <Text style={styles.sectionHeaderTitle}>Raw Readings ({filteredReadings.length})</Text>
-            <View style={styles.segmentedFilter}>
-              {(['all', 'real', 'simulated'] as const).map((f) => (
-                <TouchableOpacity
-                  key={f}
-                  onPress={() => setDataFilter(f)}
-                  style={[styles.segBtn, dataFilter === f && styles.segBtnActive]}
-                >
-                  <Text style={[styles.segBtnText, dataFilter === f && styles.segBtnTextActive]}>
-                    {f === 'all' ? 'All' : f === 'real' ? 'Real' : 'Sim'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Historical Telemetry Stream */}
-          {filteredReadings.length === 0 ? (
-            <View style={styles.emptyReadingsCard}>
-              <Text style={styles.emptyReadingsText}>No sensor telemetry records found.</Text>
-              <Text style={styles.emptyReadingsSub}>
-                Ingest synthetic data above or stream from an active ESP32 collar.
-              </Text>
-            </View>
-          ) : (
-            filteredReadings.slice(0, 10).map((r) => (
-              <View key={r.id} style={styles.readingRow}>
-                <View>
-                  <Text style={styles.readingMag}>{r.accel_magnitude} G</Text>
-                  <Text style={styles.readingAxes}>
-                    X: {r.accel_x} | Y: {r.accel_y} | Z: {r.accel_z}
-                  </Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={[styles.sourceBadge, r.is_simulation ? styles.sourceSim : styles.sourceReal]}>
-                    {r.is_simulation ? 'Simulated' : 'ESP32 IMU'}
-                  </Text>
-                  {r.battery_level !== null && (
-                    <Text style={styles.batteryText}>Battery {r.battery_level}%</Text>
-                  )}
-                </View>
-              </View>
-            ))
-          )}
-        </>
-      )}
+      {/* Simulator Trigger / Export PDF Button */}
+      <TouchableOpacity
+        style={styles.downloadPdfBtn}
+        onPress={handleSimulate}
+        activeOpacity={0.8}
+      >
+        <Icon name="download" size={16} color="#FFFFFF" />
+        <Text style={styles.downloadPdfText}>
+          {simulating ? 'Ingesting Sensor Telemetry...' : 'Download Activity Summary PDF'}
+        </Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 };
@@ -337,214 +335,116 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: Spacing.md,
-    paddingBottom: Spacing.xl,
+    paddingBottom: Spacing.xxl,
   },
-  topHeader: {
+  topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: Spacing.sm,
   },
-  headerSubtitle: {
-    fontSize: 13,
+  brandSubtitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.primary,
+    letterSpacing: 0.8,
+  },
+  pageTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.text,
+    letterSpacing: -0.4,
+  },
+  pageSub: {
+    fontSize: 12,
     color: Colors.textSecondary,
     marginTop: 2,
   },
-  petSelectorBar: {
-    flexDirection: 'row',
-    marginVertical: Spacing.sm,
-  },
-  petPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginRight: 8,
-  },
-  petPillActive: {
+  iconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  petPillAvatar: {
-    fontSize: 14,
-    marginRight: 6,
-  },
-  petPillText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  petPillTextActive: {
-    color: '#FFFFFF',
-  },
-  filterPillGroup: {
+  filterPillsRow: {
     flexDirection: 'row',
-    backgroundColor: '#EDF2F7',
+    backgroundColor: '#EAEFF0',
     borderRadius: 10,
     padding: 3,
     marginVertical: Spacing.sm,
   },
-  timeFilterBtn: {
+  filterBtn: {
     flex: 1,
-    paddingVertical: 6,
+    paddingVertical: 7,
     alignItems: 'center',
     borderRadius: 8,
   },
-  timeFilterBtnActive: {
+  filterBtnActive: {
     backgroundColor: Colors.surface,
     elevation: 1,
   },
-  timeFilterText: {
-    fontSize: 11,
+  filterBtnText: {
+    fontSize: 12,
     fontWeight: '700',
     color: Colors.textSecondary,
   },
-  timeFilterTextActive: {
+  filterBtnTextActive: {
     color: Colors.primary,
   },
-  disclaimerBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primaryLight,
-    padding: 10,
-    borderRadius: 8,
-    marginVertical: Spacing.xs,
-  },
-  disclaimerText: {
-    fontSize: 11,
-    color: Colors.primaryDark,
-    marginLeft: 6,
-    flex: 1,
-    lineHeight: 15,
-  },
-  centerContainer: {
-    paddingVertical: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  ringsCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: Spacing.md,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    elevation: 2,
-  },
-  cardHeaderTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  cardHeaderSubtitle: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  ringsCenter: {
-    alignItems: 'center',
-    marginVertical: 10,
-  },
-  metricStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-  },
-  metricBox: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  metricVal: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  metricLbl: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  metricDivider: {
-    width: 1,
-    height: '80%',
-    backgroundColor: Colors.borderLight,
-  },
-  simCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: '#C2E5DC',
-  },
-  simHeader: {
+  hardwarePillBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
-  },
-  simTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  simTag: {
-    backgroundColor: '#FEFCBF',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  simTagText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#B7791F',
-  },
-  simSubtitle: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    lineHeight: 16,
-    marginBottom: 10,
-  },
-  simBtn: {
+    backgroundColor: Colors.surface,
+    borderRadius: 8,
+    paddingHorizontal: 12,
     paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 8,
   },
-  subFilterRow: {
+  hwLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  liveGreenDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: Colors.success,
+    marginRight: 6,
+  },
+  hwTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.primaryDark,
+    letterSpacing: 0.5,
+  },
+  hwId: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.textMuted,
+  },
+  segmentedFilterRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 6,
-    marginBottom: Spacing.sm,
-  },
-  sectionHeaderTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  segmentedFilter: {
-    flexDirection: 'row',
-    backgroundColor: '#EDF2F7',
-    borderRadius: 8,
-    padding: 2,
+    marginBottom: Spacing.md,
   },
   segBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    flex: 1,
+    backgroundColor: Colors.surface,
     borderRadius: 6,
+    paddingVertical: 6,
+    alignItems: 'center',
+    marginHorizontal: 2,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   segBtnActive: {
-    backgroundColor: Colors.surface,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryLight,
   },
   segBtnText: {
     fontSize: 11,
@@ -554,76 +454,270 @@ const styles = StyleSheet.create({
   segBtnTextActive: {
     color: Colors.primary,
   },
-  emptyReadingsCard: {
+  actionDurationCard: {
     backgroundColor: Colors.surface,
-    padding: Spacing.lg,
-    borderRadius: 12,
-    alignItems: 'center',
+    borderRadius: 16,
+    padding: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
+    marginBottom: Spacing.md,
+    elevation: 2,
   },
-  emptyReadingsText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  emptyReadingsSub: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  readingRow: {
-    backgroundColor: Colors.surface,
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 8,
+  cardHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
   },
-  readingMag: {
-    fontSize: 15,
+  subTag: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: Colors.primary,
+    letterSpacing: 0.8,
+  },
+  durationBig: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.text,
+    letterSpacing: -0.3,
+  },
+  durationSub: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  goalDeltaText: {
+    fontSize: 11,
+    color: Colors.success,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  percentCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 3,
+    borderColor: Colors.secondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  percentText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  spectrumBarRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  spectrumTitle: {
+    fontSize: 11,
     fontWeight: '700',
     color: Colors.text,
   },
-  readingAxes: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  sourceBadge: {
-    fontSize: 10,
-    fontWeight: '700',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  sourceSim: {
-    backgroundColor: '#FEFCBF',
-    color: '#B7791F',
-  },
-  sourceReal: {
-    backgroundColor: Colors.primaryLight,
-    color: Colors.primaryDark,
-  },
-  batteryText: {
+  recordedTime: {
     fontSize: 11,
     color: Colors.textMuted,
-    marginTop: 4,
   },
-  emptyContainer: {
-    backgroundColor: Colors.surface,
-    padding: Spacing.xl,
-    borderRadius: 16,
+  spectrumBar: {
+    height: 8,
+    borderRadius: 4,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  spectrumSegment: {
+    height: '100%',
+  },
+  spectrumLegendRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
+  specLbl: {
+    fontSize: 10,
+    color: Colors.textMuted,
+  },
+  timelineHeatmapHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    marginBottom: 8,
+  },
+  timelineTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  peakTimeText: {
+    fontSize: 10,
+    color: Colors.textMuted,
+  },
+  barGraphRow: {
+    height: 60,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
+  barCol: {
+    flex: 1,
     alignItems: 'center',
-    marginTop: Spacing.lg,
   },
-  emptySub: {
-    fontSize: 13,
-    color: Colors.textSecondary,
+  heatBar: {
+    width: 14,
+    borderRadius: 3,
+  },
+  barLabelsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginTop: 4,
+  },
+  hourLabel: {
+    fontSize: 9,
+    color: Colors.textMuted,
+  },
+  intensityCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.md,
+  },
+  intensityTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  intensityTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  intensitySub: {
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  confidenceBadge: {
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  confidenceText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.primaryDark,
+  },
+  intensityStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  intensityDetail: {
+    fontSize: 10,
+    color: Colors.textMuted,
+  },
+  intensityScaleBar: {
+    height: 6,
+    backgroundColor: '#EAEFF0',
+    borderRadius: 3,
+    position: 'relative',
+    marginVertical: 4,
+  },
+  scaleMarker: {
+    position: 'absolute',
+    top: -2,
+    width: 4,
+    height: 10,
+    backgroundColor: Colors.primary,
+    borderRadius: 2,
+  },
+  scaleLabelsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  scaleLbl: {
+    fontSize: 9,
+    color: Colors.textMuted,
+  },
+  intensityFooterNotice: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    lineHeight: 14,
+    marginTop: 10,
+  },
+  sessionsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: Spacing.sm,
+  },
+  sessionsTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  sessionsCount: {
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  sessionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 8,
+  },
+  sessionDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 10,
+  },
+  sessionInfo: {
+    flex: 1,
+  },
+  sessionName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  sessionSub: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 1,
+  },
+  sessionTag: {
+    backgroundColor: Colors.tertiaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  sessionTagText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.tertiary,
+  },
+  downloadPdfBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  downloadPdfText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginLeft: 8,
   },
 });

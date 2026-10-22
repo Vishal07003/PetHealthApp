@@ -3,133 +3,64 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Colors } from '../theme/theme';
 
 interface ActivityRingsProps {
-  movePercent: number; // 0 - 100
-  exercisePercent: number; // 0 - 100
-  restPercent: number; // 0 - 100
+  scorePercent: number; // 0 - 100
   size?: number;
-  centerLabel?: string;
-  centerValue?: string;
+  label?: string;
+  subLabel?: string;
 }
 
 /**
- * Concentric activity rings component inspired by modern fitness/health apps.
- * Implemented using pure React Native curved border segments for zero native binary dependencies.
+ * Precision circular gauge matching the "Clinical Bio-Care" design system.
+ * Features a high-contrast clinical teal arc, central percentage badge, and clean metric readout.
  */
 export const ActivityRings: React.FC<ActivityRingsProps> = ({
-  movePercent,
-  exercisePercent,
-  restPercent,
+  scorePercent,
   size = 180,
-  centerLabel = 'Active Score',
-  centerValue,
+  label = 'Goal Met',
+  subLabel = 'IMU Motion Score',
 }) => {
-  // Clamp percentages between 5 and 100 for display
-  const p1 = Math.min(Math.max(movePercent, 0), 100);
-  const p2 = Math.min(Math.max(exercisePercent, 0), 100);
-  const p3 = Math.min(Math.max(restPercent, 0), 100);
-
-  const ring1Size = size;
-  const ring2Size = size - 32;
-  const ring3Size = size - 64;
-
-  const strokeWidth = 10;
+  const p = Math.min(Math.max(scorePercent, 5), 100);
+  const strokeWidth = 12;
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>
-      {/* Outer Ring: Move / Active Energy (Accent Coral) */}
+      {/* Outer subtle clinical track */}
       <View
         style={[
           styles.track,
           {
-            width: ring1Size,
-            height: ring1Size,
-            borderRadius: ring1Size / 2,
+            width: size,
+            height: size,
+            borderRadius: size / 2,
             borderWidth: strokeWidth,
-            borderColor: '#FFE3DC',
+            borderColor: '#E8F2EF',
           },
         ]}
       />
+
+      {/* Progress Arc */}
       <View
         style={[
           styles.progressArc,
           {
-            width: ring1Size,
-            height: ring1Size,
-            borderRadius: ring1Size / 2,
+            width: size,
+            height: size,
+            borderRadius: size / 2,
             borderWidth: strokeWidth,
             borderColor: Colors.secondary,
-            borderRightColor: p1 > 25 ? Colors.secondary : 'transparent',
-            borderBottomColor: p1 > 50 ? Colors.secondary : 'transparent',
-            borderLeftColor: p1 > 75 ? Colors.secondary : 'transparent',
+            borderRightColor: p > 25 ? Colors.secondary : 'transparent',
+            borderBottomColor: p > 50 ? Colors.primary : 'transparent',
+            borderLeftColor: p > 75 ? Colors.primary : 'transparent',
             transform: [{ rotate: '-45deg' }],
           },
         ]}
       />
 
-      {/* Middle Ring: Exercise / Running Minutes (Primary Teal) */}
-      <View
-        style={[
-          styles.track,
-          {
-            width: ring2Size,
-            height: ring2Size,
-            borderRadius: ring2Size / 2,
-            borderWidth: strokeWidth,
-            borderColor: '#D4EBE5',
-          },
-        ]}
-      />
-      <View
-        style={[
-          styles.progressArc,
-          {
-            width: ring2Size,
-            height: ring2Size,
-            borderRadius: ring2Size / 2,
-            borderWidth: strokeWidth,
-            borderColor: Colors.primary,
-            borderRightColor: p2 > 25 ? Colors.primary : 'transparent',
-            borderBottomColor: p2 > 50 ? Colors.primary : 'transparent',
-            borderLeftColor: p2 > 75 ? Colors.primary : 'transparent',
-            transform: [{ rotate: '-45deg' }],
-          },
-        ]}
-      />
-
-      {/* Inner Ring: Rest / Sleep Duration (Accent Purple) */}
-      <View
-        style={[
-          styles.track,
-          {
-            width: ring3Size,
-            height: ring3Size,
-            borderRadius: ring3Size / 2,
-            borderWidth: strokeWidth,
-            borderColor: '#E7E7F8',
-          },
-        ]}
-      />
-      <View
-        style={[
-          styles.progressArc,
-          {
-            width: ring3Size,
-            height: ring3Size,
-            borderRadius: ring3Size / 2,
-            borderWidth: strokeWidth,
-            borderColor: Colors.accent,
-            borderRightColor: p3 > 25 ? Colors.accent : 'transparent',
-            borderBottomColor: p3 > 50 ? Colors.accent : 'transparent',
-            borderLeftColor: p3 > 75 ? Colors.accent : 'transparent',
-            transform: [{ rotate: '-45deg' }],
-          },
-        ]}
-      />
-
-      {/* Center Label */}
+      {/* Center Metrics Readout */}
       <View style={styles.centerBox}>
-        <Text style={styles.centerValue}>{centerValue || `${Math.round(p1)}%`}</Text>
-        <Text style={styles.centerLabel}>{centerLabel}</Text>
+        <Text style={styles.scoreText}>{Math.round(p)}%</Text>
+        <Text style={styles.centerLabel}>{label}</Text>
+        <Text style={styles.centerSubLabel}>{subLabel}</Text>
       </View>
     </View>
   );
@@ -154,16 +85,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 10,
   },
-  centerValue: {
-    fontSize: 22,
+  scoreText: {
+    fontSize: 28,
     fontWeight: '800',
-    color: Colors.text,
+    color: Colors.primaryDark,
+    letterSpacing: -0.5,
   },
   centerLabel: {
     fontSize: 10,
-    fontWeight: '600',
-    color: Colors.textSecondary,
+    fontWeight: '700',
+    color: Colors.primary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  centerSubLabel: {
+    fontSize: 9,
+    color: Colors.textMuted,
+    marginTop: 1,
   },
 });

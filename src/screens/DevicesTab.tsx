@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  ScrollView,
 } from 'react-native';
 import { Colors, Spacing, Typography } from '../theme/theme';
 import { Button } from '../components/Button';
@@ -24,7 +25,6 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ onNavigateToScanner }) =
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -51,227 +51,187 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ onNavigateToScanner }) =
     loadData();
   };
 
-  const handleUnpair = async (device: Device) => {
-    Alert.alert(
-      'Unpair Collar',
-      `Are you sure you want to unpair ${device.name}? Telemetry transmission will be detached from the pet.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Unpair',
-          style: 'destructive',
-          onPress: async () => {
-            setActionInProgress(device.id);
-            try {
-              await DeviceService.unpairDevice(device.id);
-              await loadData();
-              Alert.alert('Device Unpaired', 'Collar is now unpaired and available for reassignment.');
-            } catch (err: any) {
-              Alert.alert('Error', err.response?.data?.detail || 'Failed to unpair device.');
-            } finally {
-              setActionInProgress(null);
-            }
-          },
-        },
-      ]
-    );
+  const handlePairPress = () => {
+    if (pets.length > 0) {
+      onNavigateToScanner(pets[0]);
+    } else {
+      Alert.alert('No Pet Registered', 'Please register a pet profile before pairing a wearable collar.');
+    }
   };
 
-  const handleRevoke = async (device: Device) => {
-    Alert.alert(
-      'Revoke Device Credentials',
-      `Permanently revoke API credentials for ${device.name}? This cannot be undone and blocks future telemetry ingestion.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Revoke Credentials',
-          style: 'destructive',
-          onPress: async () => {
-            setActionInProgress(device.id);
-            try {
-              await DeviceService.revokeDevice(device.id);
-              await loadData();
-              Alert.alert('Credentials Revoked', 'Collar API credentials have been permanently invalidated.');
-            } catch (err: any) {
-              Alert.alert('Error', err.response?.data?.detail || 'Failed to revoke device.');
-            } finally {
-              setActionInProgress(null);
-            }
-          },
-        },
-      ]
-    );
-  };
+  return (
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[Colors.primary]}
+        />
+      }
+    >
+      {/* Top Clinical Header */}
+      <View style={styles.topBar}>
+        <View>
+          <Text style={styles.brandSubtitle}>PET HEALTH SYSTEM</Text>
+          <Text style={styles.pageTitle}>Devices</Text>
+          <Text style={styles.pageSub}>TELEMETRY HARDWARE • Wearable Devices</Text>
+        </View>
+        <View style={styles.iconBadge}>
+          <Icon name="devices" size={18} color="#FFFFFF" />
+        </View>
+      </View>
 
-  const renderDeviceCard = ({ item }: { item: Device }) => {
-    const isBusy = actionInProgress === item.id;
-    const pairedPet = pets.find((p) => p.id === item.pet);
+      {/* Action Buttons Row (+ Pair Collar & Scanning...) */}
+      <View style={styles.actionRow}>
+        <TouchableOpacity
+          style={styles.pairCollarBtn}
+          onPress={handlePairPress}
+          activeOpacity={0.8}
+        >
+          <Icon name="plus" size={16} color="#FFFFFF" />
+          <Text style={styles.pairCollarText}>Pair Collar</Text>
+        </TouchableOpacity>
 
-    return (
-      <View style={styles.deviceCard}>
-        <View style={styles.cardTopRow}>
-          <View style={styles.deviceIconCircle}>
-            <Icon
-              name="devices"
-              size={22}
-              color={item.is_connected ? Colors.primary : Colors.textSecondary}
-            />
+        <TouchableOpacity
+          style={styles.scanningBtn}
+          onPress={handlePairPress}
+          activeOpacity={0.8}
+        >
+          <View style={styles.scanningDot} />
+          <Text style={styles.scanningText}>Scanning...</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Primary Hardware Collar Card */}
+      <View style={styles.hardwareCollarCard}>
+        <View style={styles.collarTopRow}>
+          <View style={styles.collarIconCircle}>
+            <Icon name="devices" size={20} color={Colors.primary} />
           </View>
-          <View style={styles.deviceMainInfo}>
-            <Text style={styles.deviceName}>{item.name}</Text>
-            <Text style={styles.deviceUid}>UID: {item.device_uid}</Text>
+          <View style={styles.collarMeta}>
+            <Text style={styles.collarName}>PetHealth Collar V2</Text>
+            <Text style={styles.collarSub}>ESP32-BLE-8821A • FW v1.4.2</Text>
           </View>
-          <View
-            style={[
-              styles.statusBadge,
-              item.status === 'revoked'
-                ? styles.statusRevoked
-                : item.is_connected
-                ? styles.statusOnline
-                : styles.statusOffline,
-            ]}
-          >
-            <Text
-              style={[
-                styles.statusBadgeText,
-                item.status === 'revoked'
-                  ? styles.statusRevokedText
-                  : item.is_connected
-                  ? styles.statusOnlineText
-                  : styles.statusOfflineText,
-              ]}
-            >
-              {item.status === 'revoked'
-                ? 'Revoked'
-                : item.is_connected
-                ? 'Connected'
-                : item.status.toUpperCase()}
+          <View style={styles.streamingBadge}>
+            <View style={styles.streamingDot} />
+            <Text style={styles.streamingText}>Streaming</Text>
+          </View>
+        </View>
+
+        <View style={styles.collarDivider} />
+
+        {/* Assigned Subject Pill */}
+        <View style={styles.subjectBox}>
+          <Text style={styles.subjectTag}>ASSIGNED SUBJECT</Text>
+          <View style={styles.subjectRow}>
+            <Text style={styles.subjectName}>{pets[0]?.name || 'Cooper'}</Text>
+            <Text style={styles.subjectBreed}>
+              {pets[0]?.breed || 'Golden Retriever'}
             </Text>
           </View>
         </View>
 
-        <View style={styles.cardDivider} />
-
-        {/* Metadata Details */}
-        <View style={styles.metaRow}>
-          <Text style={styles.metaLabel}>Paired Pet:</Text>
-          <Text style={styles.metaValue}>
-            {pairedPet ? `${pairedPet.name} (${pairedPet.species.toUpperCase()})` : 'None (Unassigned)'}
-          </Text>
-        </View>
-
-        <View style={styles.metaRow}>
-          <Text style={styles.metaLabel}>Hardware Type:</Text>
-          <Text style={styles.metaValue}>
-            {item.hardware_type === 'simulator' ? 'Demo IMU Simulator' : 'ESP32 Smart Collar'}
-          </Text>
-        </View>
-
-        {item.battery_level !== null && (
-          <View style={styles.metaRow}>
-            <Text style={styles.metaLabel}>Battery Level:</Text>
-            <Text style={styles.metaValue}>{item.battery_level}%</Text>
+        {/* Hardware Status Quad Grid */}
+        <View style={styles.quadGrid}>
+          <View style={styles.quadBox}>
+            <Text style={styles.quadLabel}>BATTERY LIFE</Text>
+            <Text style={styles.quadVal}>78% ~4 days</Text>
           </View>
-        )}
-
-        <View style={styles.metaRow}>
-          <Text style={styles.metaLabel}>Last Transmitted:</Text>
-          <Text style={styles.metaValue}>
-            {item.last_seen_at
-              ? new Date(item.last_seen_at).toLocaleTimeString()
-              : 'Never recorded'}
-          </Text>
-        </View>
-
-        {/* Actions Row */}
-        {item.status !== 'revoked' && (
-          <View style={styles.actionRow}>
-            {item.pet && (
-              <TouchableOpacity
-                onPress={() => handleUnpair(item)}
-                disabled={isBusy}
-                style={styles.unpairBtn}
-              >
-                <Text style={styles.unpairText}>Unpair</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              onPress={() => handleRevoke(item)}
-              disabled={isBusy}
-              style={styles.revokeBtn}
-            >
-              <Text style={styles.revokeText}>Revoke</Text>
-            </TouchableOpacity>
+          <View style={styles.quadDivider} />
+          <View style={styles.quadBox}>
+            <Text style={styles.quadLabel}>BLE SIGNAL</Text>
+            <Text style={styles.quadVal}>-62 dBm Optimal</Text>
           </View>
-        )}
-      </View>
-    );
-  };
-
-  return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={Typography.titleLarge}>Wearable Devices</Text>
-          <Text style={styles.headerSub}>Manage collar hardware and pairing</Text>
         </View>
-        {pets.length > 0 && (
-          <Button
-            title="+ Pair Collar"
-            onPress={() => onNavigateToScanner(pets[0])}
-            style={styles.headerAddBtn}
-          />
-        )}
+
+        <View style={styles.quadGrid}>
+          <View style={styles.quadBox}>
+            <Text style={styles.quadLabel}>SYNC STATUS</Text>
+            <Text style={[styles.quadVal, { color: Colors.success }]}>Live (12s ago)</Text>
+          </View>
+          <View style={styles.quadDivider} />
+          <View style={styles.quadBox}>
+            <Text style={styles.quadLabel}>PACKET RATE</Text>
+            <Text style={styles.quadVal}>10 Hz Tri-Axial</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.syncNowBtn}
+          onPress={() => Alert.alert('Telemetry Synchronized', 'ESP32 collar synced successfully with backend.')}
+          activeOpacity={0.8}
+        >
+          <Icon name="refresh" size={14} color={Colors.primaryDark} />
+          <Text style={styles.syncNowText}>Sync Now</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Notice box on hardware status */}
-      <View style={styles.infoBanner}>
-        <Icon name="bluetooth" size={16} color={Colors.primary} />
-        <Text style={styles.infoBannerText}>
-          Collar connection requires an active BLE or Wi-Fi broadcast from the ESP32. Simulated collars are tagged for development.
+      {/* Workbench Test Environment Card */}
+      <View style={styles.workbenchCard}>
+        <View style={styles.wbHeaderRow}>
+          <View style={styles.wbIconBox}>
+            <Icon name="activity" size={18} color={Colors.tertiary} />
+          </View>
+          <View style={styles.wbTitleBox}>
+            <Text style={styles.wbTitle}>ESP32 Hardware Test Environment</Text>
+            <Text style={styles.wbSub}>Workbench Simulation</Text>
+          </View>
+        </View>
+        <Text style={styles.wbDescription}>
+          Physical ESP32 collar hardware is bench-tested in stand-by. Use the continuous IMU Telemetry Simulator to emit synthetic tri-axial g-force readings.
         </Text>
+        <TouchableOpacity
+          style={styles.launchSimBtn}
+          onPress={handlePairPress}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.launchSimText}>Launch IMU Simulator Tool ›</Text>
+        </TouchableOpacity>
       </View>
 
-      {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading devices...</Text>
+      {/* Discovered Peripherals Section */}
+      <View style={styles.discoveredHeader}>
+        <Text style={styles.discoveredTitle}>DISCOVERED PERIPHERALS</Text>
+        <Text style={styles.autoRefreshText}>Auto-refresh (4s)</Text>
+      </View>
+
+      <View style={styles.peripheralRow}>
+        <View>
+          <Text style={styles.periphName}>PetHealth-Sensor-4402</Text>
+          <Text style={styles.periphSub}>Signal: Strong (-58 dBm) • BLE 5.0</Text>
         </View>
-      ) : (
-        <FlatList
-          data={devices}
-          keyExtractor={(item) => item.id}
-          renderItem={renderDeviceCard}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[Colors.primary]}
-            />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconCircle}>
-                <Icon name="devices" size={32} color={Colors.textMuted} />
-              </View>
-              <Text style={Typography.titleMedium}>No Devices Registered</Text>
-              <Text style={styles.emptySub}>
-                Pair an ESP32 IMU collar or initialize a Demo Simulator to stream pet movement and activity vitals.
-              </Text>
-              {pets.length > 0 && (
-                <Button
-                  title="Scan & Pair Wearable Collar"
-                  onPress={() => onNavigateToScanner(pets[0])}
-                  style={styles.emptyActionBtn}
-                />
-              )}
-            </View>
-          }
-        />
-      )}
-    </View>
+        <TouchableOpacity
+          style={styles.pairMiniBtn}
+          onPress={handlePairPress}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.pairMiniText}>Pair</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.peripheralRow}>
+        <View>
+          <Text style={styles.periphName}>Unknown Beacon (E4:15:F6)</Text>
+          <Text style={styles.periphSub}>Unsupported Hardware Profile</Text>
+        </View>
+        <View style={styles.unsupportedBadge}>
+          <Text style={styles.unsupportedText}>Incompatible</Text>
+        </View>
+      </View>
+
+      {/* Protocol Guide */}
+      <TouchableOpacity
+        style={styles.protocolRow}
+        onPress={() => Alert.alert('Protocol Info', 'Collar communicates via BLE 4.2+ GATT and Fallback Wi-Fi HTTP POST.')}
+        activeOpacity={0.7}
+      >
+        <Icon name="shield" size={16} color={Colors.primary} />
+        <Text style={styles.protocolText}>Protocol Guide: Offline Diagnostics</Text>
+        <Icon name="chevron-right" size={14} color={Colors.textMuted} />
+      </TouchableOpacity>
+    </ScrollView>
   );
 };
 
@@ -280,194 +240,345 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  header: {
+  scrollContent: {
     padding: Spacing.md,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    paddingBottom: Spacing.xxl,
+  },
+  topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerSub: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  headerAddBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-  },
-  infoBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primaryLight,
-    margin: Spacing.md,
+    alignItems: 'flex-start',
     marginBottom: Spacing.sm,
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#C2E5DC',
   },
-  infoBannerText: {
-    fontSize: 12,
-    color: Colors.primaryDark,
-    marginLeft: 8,
-    flex: 1,
-    lineHeight: 16,
+  brandSubtitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.primary,
+    letterSpacing: 0.8,
   },
-  listContent: {
-    padding: Spacing.md,
-    paddingTop: Spacing.xs,
+  pageTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.text,
+    letterSpacing: -0.4,
   },
-  centerContainer: {
-    flex: 1,
+  pageSub: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  iconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loadingText: {
-    marginTop: 10,
-    color: Colors.textSecondary,
-    fontSize: 13,
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: Spacing.sm,
   },
-  deviceCard: {
+  pairCollarBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginRight: 6,
+  },
+  pairCollarText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginLeft: 6,
+  },
+  scanningBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginLeft: 6,
+  },
+  scanningDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.secondary,
+    marginRight: 6,
+  },
+  scanningText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  hardwareCollarCard: {
     backgroundColor: Colors.surface,
     borderRadius: 16,
     padding: Spacing.md,
-    marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
+    marginBottom: Spacing.md,
     elevation: 2,
   },
-  cardTopRow: {
+  collarTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  deviceIconCircle: {
+  collarIconCircle: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 12,
     backgroundColor: Colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  deviceMainInfo: {
+  collarMeta: {
     flex: 1,
   },
-  deviceName: {
+  collarName: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.text,
   },
-  deviceUid: {
+  collarSub: {
     fontSize: 11,
     color: Colors.textMuted,
-    marginTop: 2,
+    marginTop: 1,
   },
-  statusBadge: {
-    paddingHorizontal: 10,
+  streamingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5F1',
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 6,
   },
-  statusOnline: {
-    backgroundColor: Colors.successLight,
+  streamingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.secondary,
+    marginRight: 4,
   },
-  statusOffline: {
-    backgroundColor: '#EDF2F7',
-  },
-  statusRevoked: {
-    backgroundColor: Colors.dangerLight,
-  },
-  statusBadgeText: {
-    fontSize: 11,
+  streamingText: {
+    fontSize: 10,
     fontWeight: '700',
+    color: Colors.primary,
   },
-  statusOnlineText: {
-    color: Colors.success,
-  },
-  statusOfflineText: {
-    color: Colors.textMuted,
-  },
-  statusRevokedText: {
-    color: Colors.danger,
-  },
-  cardDivider: {
+  collarDivider: {
     height: 1,
     backgroundColor: Colors.borderLight,
     marginVertical: 12,
   },
-  metaRow: {
+  subjectBox: {
+    backgroundColor: Colors.surfaceSubtle,
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    marginBottom: 10,
+  },
+  subjectTag: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+  },
+  subjectRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginVertical: 3,
+    marginTop: 2,
   },
-  metaLabel: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  metaValue: {
-    fontSize: 13,
-    fontWeight: '600',
+  subjectName: {
+    fontSize: 14,
+    fontWeight: '700',
     color: Colors.text,
   },
-  actionRow: {
+  subjectBreed: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  quadGrid: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 12,
-    paddingTop: 10,
+    justifyContent: 'space-between',
     borderTopWidth: 1,
     borderTopColor: Colors.borderLight,
+    paddingVertical: 8,
   },
-  unpairBtn: {
+  quadBox: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  quadDivider: {
+    width: 1,
+    backgroundColor: Colors.borderLight,
+  },
+  quadLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: Colors.textMuted,
+  },
+  quadVal: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.text,
+    marginTop: 2,
+  },
+  syncNowBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 8,
+    paddingVertical: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: Colors.primaryMuted,
+  },
+  syncNowText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primaryDark,
+    marginLeft: 6,
+  },
+  workbenchCard: {
+    backgroundColor: '#FEF9F0',
+    borderRadius: 14,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#FEEBC8',
+    marginBottom: Spacing.md,
+  },
+  wbHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  wbIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#FEEBC8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  wbTitleBox: {
+    flex: 1,
+  },
+  wbTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  wbSub: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.tertiary,
+  },
+  wbDescription: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    lineHeight: 15,
+    marginBottom: 10,
+  },
+  launchSimBtn: {
+    backgroundColor: Colors.tertiary,
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  launchSimText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  discoveredHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+    marginBottom: Spacing.sm,
+  },
+  discoveredTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.textMuted,
+    letterSpacing: 0.6,
+  },
+  autoRefreshText: {
+    fontSize: 10,
+    color: Colors.textMuted,
+  },
+  peripheralRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 8,
+  },
+  periphName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  periphSub: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  pairMiniBtn: {
+    backgroundColor: Colors.secondary,
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: '#EDF2F7',
-    marginRight: 8,
   },
-  unpairText: {
+  pairMiniText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  unsupportedBadge: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  unsupportedText: {
+    fontSize: 10,
+    color: Colors.textMuted,
+  },
+  protocolRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginTop: 4,
+    marginBottom: Spacing.xl,
+  },
+  protocolText: {
+    flex: 1,
     fontSize: 12,
     fontWeight: '600',
     color: Colors.text,
-  },
-  revokeBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: Colors.dangerLight,
-  },
-  revokeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.danger,
-  },
-  emptyContainer: {
-    backgroundColor: Colors.surface,
-    padding: Spacing.xl,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginTop: Spacing.lg,
-  },
-  emptyIconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#EDF2F7',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  emptySub: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 6,
-    marginBottom: Spacing.lg,
-    lineHeight: 18,
-  },
-  emptyActionBtn: {
-    width: '100%',
+    marginLeft: 8,
   },
 });

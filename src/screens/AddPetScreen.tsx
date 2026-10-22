@@ -220,15 +220,15 @@ export const AddPetScreen: React.FC<AddPetScreenProps> = ({ onBack, onPetCreated
 const styles = StyleSheet.create({
   container: {
     backgroundColor: Colors.background,
-    padding: Spacing.lg,
+    padding: Spacing.md,
     paddingBottom: Spacing.xxl,
   },
   navRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
-    paddingTop: Spacing.md,
+    marginBottom: Spacing.md,
+    paddingTop: 0,
   },
   backBtn: {
     padding: 8,

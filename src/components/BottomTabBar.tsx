@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../theme/theme';
 import { Icon, IconName } from './Icon';
 
@@ -14,6 +15,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
   activeTab,
   onTabChange,
 }) => {
+  const insets = useSafeAreaInsets();
   const tabs: Array<{ id: MainTabType; label: string; icon: IconName }> = [
     { id: 'home', label: 'Home', icon: 'home' },
     { id: 'activity', label: 'Activity', icon: 'activity' },
@@ -22,7 +24,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
   ];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 6) }]}>
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         const color = isActive ? Colors.primary : Colors.textMuted;
@@ -48,7 +50,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    height: 64,
+    minHeight: 64,
     backgroundColor: Colors.surface,
     borderTopWidth: 1,
     borderTopColor: Colors.borderLight,

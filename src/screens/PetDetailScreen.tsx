@@ -157,15 +157,15 @@ export const PetDetailScreen: React.FC<PetDetailScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: Colors.background,
-    padding: Spacing.lg,
+    padding: Spacing.md,
     paddingBottom: Spacing.xxl,
   },
   navRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
-    paddingTop: Spacing.md,
+    marginBottom: Spacing.sm,
+    paddingTop: 0,
   },
   backBtn: {
     padding: 8,

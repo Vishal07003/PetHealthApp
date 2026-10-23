@@ -1,11 +1,14 @@
 import React from 'react';
 import {
+  View,
   KeyboardAvoidingView,
   ScrollView,
   Platform,
   StyleSheet,
   ViewStyle,
   ScrollViewProps,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 
 interface KeyboardAwareContainerProps extends ScrollViewProps {
@@ -35,7 +38,9 @@ export const KeyboardAwareContainer: React.FC<KeyboardAwareContainerProps> = ({
         bounces={false}
         {...rest}
       >
-        {children}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={{ flex: 1 }}>{children}</View>
+        </TouchableWithoutFeedback>
       </ScrollView>
     </KeyboardAvoidingView>
   );

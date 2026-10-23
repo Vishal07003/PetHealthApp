@@ -12,8 +12,8 @@ import { Colors, Spacing, Typography } from '../theme/theme';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
 import { ActivityRings } from '../components/ActivityRings';
-import { Pet, ActivitySummary, Device } from '../types/api';
-import { PetService, InsightsService, DeviceService } from '../services/PetHealthService';
+import { Pet, ActivitySummary, Device, VetAppointment, MedicalRecord } from '../types/api';
+import { PetService, InsightsService, DeviceService, ClinicalService } from '../services/PetHealthService';
 import { useAuth } from '../context/AuthContext';
 
 interface HomeScreenProps {
@@ -36,6 +36,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const [summary, setSummary] = useState<ActivitySummary | null>(null);
   const [device, setDevice] = useState<Device | null>(null);
+  const [upcomingAppointment, setUpcomingAppointment] = useState<VetAppointment | null>(null);
+  const [latestMedical, setLatestMedical] = useState<MedicalRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,16 +55,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       setSelectedPet(active);
 
       if (active) {
-        const [summaries, devices] = await Promise.all([
+        const [summaries, devices, appts, meds] = await Promise.all([
           InsightsService.listSummaries(active.id).catch(() => []),
           DeviceService.listDevices().catch(() => []),
+          ClinicalService.listAppointments(active.id).catch(() => []),
+          ClinicalService.listMedicalRecords(active.id).catch(() => []),
         ]);
         setSummary(summaries.length > 0 ? summaries[0] : null);
         const paired = devices.find((d) => d.pet === active.id);
         setDevice(paired || null);
+        setUpcomingAppointment(appts.length > 0 ? appts[0] : null);
+        setLatestMedical(meds.length > 0 ? meds[0] : null);
       } else {
         setSummary(null);
         setDevice(null);
+        setUpcomingAppointment(null);
+        setLatestMedical(null);
       }
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Unable to sync clinical pet health data.');
@@ -354,7 +362,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </View>
               <View style={styles.menuContent}>
                 <Text style={styles.menuTitle}>Veterinary & Vaccines</Text>
-                <Text style={styles.menuSub}>Next booster: Rabies core annual</Text>
+                <Text style={styles.menuSub}>
+                  {upcomingAppointment
+                    ? `Upcoming: ${upcomingAppointment.title || upcomingAppointment.reason} (${new Date(upcomingAppointment.appointment_date).toLocaleDateString()})`
+                    : latestMedical
+                    ? `Latest: ${latestMedical.title} (${latestMedical.record_type})`
+                    : 'No upcoming vet appointments logged'}
+                </Text>
               </View>
               <Icon name="chevron-right" size={16} color={Colors.textMuted} />
             </TouchableOpacity>

@@ -124,3 +124,38 @@ export interface TokenRefreshResponse {
   access: string;
   refresh?: string;
 }
+
+export interface WeightRecord {
+  id: string;
+  pet: string;
+  weight_kg: string;
+  recorded_at: string;
+  notes: string;
+  created_at: string;
+}
+
+export interface MedicalRecord {
+  id: string;
+  pet: string;
+  record_type: 'vaccination' | 'deworming' | 'medication' | 'lab_test' | 'checkup';
+  title: string;
+  administered_at: string;
+  next_due_date: string | null;
+  batch_number: string;
+  veterinarian: string;
+  clinic_name: string;
+  notes: string;
+  created_at: string;
+}
+
+export interface VetAppointment {
+  id: string;
+  pet: string;
+  title: string;
+  appointment_date: string;
+  veterinarian: string;
+  clinic_name: string;
+  reason: string;
+  status: 'scheduled' | 'completed' | 'cancelled';
+  created_at: string;
+}

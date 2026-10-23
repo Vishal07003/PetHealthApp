@@ -13,6 +13,9 @@ import {
   DeviceRegisterResponse,
   TelemetryReading,
   ActivitySummary,
+  WeightRecord,
+  MedicalRecord,
+  VetAppointment,
 } from '../types/api';
 
 export const AuthService = {
@@ -86,6 +89,63 @@ export const PetService = {
 
   async deletePet(id: string): Promise<void> {
     await apiClient.delete(API_ENDPOINTS.PET_DETAIL(id));
+  },
+};
+
+export const ClinicalService = {
+  async listWeights(petId?: string): Promise<WeightRecord[]> {
+    const url = petId ? `${API_ENDPOINTS.WEIGHTS}?pet_id=${petId}` : API_ENDPOINTS.WEIGHTS;
+    const response = await apiClient.get<WeightRecord[]>(url);
+    return response.data;
+  },
+
+  async addWeight(petId: string, weightKg: number, notes?: string): Promise<WeightRecord> {
+    const response = await apiClient.post<WeightRecord>(API_ENDPOINTS.WEIGHTS, {
+      pet: petId,
+      weight_kg: weightKg,
+      notes: notes || '',
+    });
+    return response.data;
+  },
+
+  async listMedicalRecords(petId?: string): Promise<MedicalRecord[]> {
+    const url = petId ? `${API_ENDPOINTS.MEDICAL_RECORDS}?pet_id=${petId}` : API_ENDPOINTS.MEDICAL_RECORDS;
+    const response = await apiClient.get<MedicalRecord[]>(url);
+    return response.data;
+  },
+
+  async addMedicalRecord(payload: {
+    pet: string;
+    record_type: 'vaccination' | 'deworming' | 'medication' | 'lab_test' | 'checkup';
+    title: string;
+    administered_at: string;
+    next_due_date?: string | null;
+    batch_number?: string;
+    veterinarian?: string;
+    clinic_name?: string;
+    notes?: string;
+  }): Promise<MedicalRecord> {
+    const response = await apiClient.post<MedicalRecord>(API_ENDPOINTS.MEDICAL_RECORDS, payload);
+    return response.data;
+  },
+
+  async listAppointments(petId?: string): Promise<VetAppointment[]> {
+    const url = petId ? `${API_ENDPOINTS.APPOINTMENTS}?pet_id=${petId}` : API_ENDPOINTS.APPOINTMENTS;
+    const response = await apiClient.get<VetAppointment[]>(url);
+    return response.data;
+  },
+
+  async addAppointment(payload: {
+    pet: string;
+    title: string;
+    appointment_date: string;
+    veterinarian?: string;
+    clinic_name?: string;
+    reason?: string;
+    status?: 'scheduled' | 'completed' | 'cancelled';
+  }): Promise<VetAppointment> {
+    const response = await apiClient.post<VetAppointment>(API_ENDPOINTS.APPOINTMENTS, payload);
+    return response.data;
   },
 };
 

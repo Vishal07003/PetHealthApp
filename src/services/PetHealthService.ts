@@ -16,6 +16,9 @@ import {
   WeightRecord,
   MedicalRecord,
   VetAppointment,
+  BodyConditionScore,
+  ClinicalObservation,
+  ObservationCategory,
 } from '../types/api';
 
 export const AuthService = {
@@ -145,6 +148,46 @@ export const ClinicalService = {
     status?: 'scheduled' | 'completed' | 'cancelled';
   }): Promise<VetAppointment> {
     const response = await apiClient.post<VetAppointment>(API_ENDPOINTS.APPOINTMENTS, payload);
+    return response.data;
+  },
+
+  async listBCS(petId?: string): Promise<BodyConditionScore[]> {
+    const url = petId ? `${API_ENDPOINTS.BCS}?pet_id=${petId}` : API_ENDPOINTS.BCS;
+    const response = await apiClient.get<BodyConditionScore[]>(url);
+    return response.data;
+  },
+
+  async addBCS(payload: {
+    pet: string;
+    score: number;
+    assessor_source?: string;
+    palpation_notes?: string;
+    silhouette_notes?: string;
+    recorded_at?: string;
+  }): Promise<BodyConditionScore> {
+    const response = await apiClient.post<BodyConditionScore>(API_ENDPOINTS.BCS, payload);
+    return response.data;
+  },
+
+  async listObservations(petId?: string, category?: string): Promise<ClinicalObservation[]> {
+    let url = API_ENDPOINTS.OBSERVATIONS;
+    const params: string[] = [];
+    if (petId) params.push(`pet_id=${petId}`);
+    if (category) params.push(`category=${category}`);
+    if (params.length > 0) url += `?${params.join('&')}`;
+    const response = await apiClient.get<ClinicalObservation[]>(url);
+    return response.data;
+  },
+
+  async addObservation(payload: {
+    pet: string;
+    category: ObservationCategory;
+    headline: string;
+    details: string;
+    is_shared_with_vet?: boolean;
+    observed_at?: string;
+  }): Promise<ClinicalObservation> {
+    const response = await apiClient.post<ClinicalObservation>(API_ENDPOINTS.OBSERVATIONS, payload);
     return response.data;
   },
 };

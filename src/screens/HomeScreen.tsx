@@ -22,6 +22,10 @@ interface HomeScreenProps {
   onNavigateToScanner: (pet: Pet) => void;
   onNavigateToInsights: (pet: Pet) => void;
   onNavigateToProfile: () => void;
+  onNavigateToVaccines: (pet: Pet) => void;
+  onNavigateToObservations: (pet: Pet) => void;
+  onNavigateToWeight: (pet: Pet) => void;
+  onNavigateToSimulator: (pet: Pet) => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -30,6 +34,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onNavigateToScanner,
   onNavigateToInsights,
   onNavigateToProfile,
+  onNavigateToVaccines,
+  onNavigateToObservations,
+  onNavigateToWeight,
+  onNavigateToSimulator,
 }) => {
   const { user } = useAuth();
   const [pets, setPets] = useState<Pet[]>([]);
@@ -141,10 +149,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   setSelectedPet(p);
                   InsightsService.listSummaries(p.id)
                     .then((sums) => setSummary(sums[0] || null))
-                    .catch(() => {});
+                    .catch(() => { });
                   DeviceService.listDevices()
                     .then((devs) => setDevice(devs.find((d) => d.pet === p.id) || null))
-                    .catch(() => {});
+                    .catch(() => { });
                 }}
                 style={[styles.petPill, isSelected && styles.petPillActive]}
               >
@@ -354,7 +362,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             <TouchableOpacity
               style={styles.menuRow}
-              onPress={() => onSelectPet(selectedPet)}
+              onPress={() => onNavigateToVaccines(selectedPet)}
               activeOpacity={0.7}
             >
               <View style={[styles.menuIconCircle, { backgroundColor: Colors.tertiaryLight }]}>
@@ -366,8 +374,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   {upcomingAppointment
                     ? `Upcoming: ${upcomingAppointment.title || upcomingAppointment.reason} (${new Date(upcomingAppointment.appointment_date).toLocaleDateString()})`
                     : latestMedical
-                    ? `Latest: ${latestMedical.title} (${latestMedical.record_type})`
-                    : 'No upcoming vet appointments logged'}
+                      ? `Latest: ${latestMedical.title} (${latestMedical.record_type})`
+                      : 'Preventative schedule, core boosters & PDF dossier'}
                 </Text>
               </View>
               <Icon name="chevron-right" size={16} color={Colors.textMuted} />
@@ -377,17 +385,51 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             <TouchableOpacity
               style={styles.menuRow}
-              onPress={() => onSelectPet(selectedPet)}
+              onPress={() => onNavigateToObservations(selectedPet)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.menuIconCircle, { backgroundColor: '#F3E8FF' }]}>
+                <Icon name="file-text" size={18} color="#7E22CE" />
+              </View>
+              <View style={styles.menuContent}>
+                <Text style={styles.menuTitle}>Clinical Observation Notes</Text>
+                <Text style={styles.menuSub}>Behavioral matrix, appetite, stool & gait notes</Text>
+              </View>
+              <Icon name="chevron-right" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+
+            <View style={styles.rowDivider} />
+
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => onNavigateToWeight(selectedPet)}
               activeOpacity={0.7}
             >
               <View style={[styles.menuIconCircle, { backgroundColor: '#F0F4FF' }]}>
                 <Icon name="scale" size={18} color={Colors.accentBlue} />
               </View>
               <View style={styles.menuContent}>
-                <Text style={styles.menuTitle}>Weight History</Text>
+                <Text style={styles.menuTitle}>Weight & Body Condition</Text>
                 <Text style={styles.menuSub}>
-                  {selectedPet.weight_kg ? `${selectedPet.weight_kg} kg • Verified` : '20.5 kg • Stable past 30d'}
+                  {selectedPet.weight_kg ? `${selectedPet.weight_kg} kg` : '28.5 kg'} • WSAVA 1-9 scale & 6M trendline
                 </Text>
+              </View>
+              <Icon name="chevron-right" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+
+            <View style={styles.rowDivider} />
+
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => onNavigateToSimulator(selectedPet)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.menuIconCircle, { backgroundColor: '#0F172A' }]}>
+                <Icon name="devices" size={18} color="#FFFFFF" />
+              </View>
+              <View style={styles.menuContent}>
+                <Text style={styles.menuTitle}>IMU Telemetry Simulator</Text>
+                <Text style={styles.menuSub}>Hardware workbench bench-test (Simulated)</Text>
               </View>
               <Icon name="chevron-right" size={16} color={Colors.textMuted} />
             </TouchableOpacity>

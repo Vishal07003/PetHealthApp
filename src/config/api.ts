@@ -16,6 +16,8 @@ export const API_ENDPOINTS = {
   PETS: '/pets/',
   PET_DETAIL: (id: string) => `/pets/${id}/`,
   WEIGHTS: '/pets/weights/',
+  BCS: '/pets/bcs/',
+  OBSERVATIONS: '/pets/observations/',
   MEDICAL_RECORDS: '/pets/medical-records/',
   APPOINTMENTS: '/pets/appointments/',
   DEVICES: '/devices/',

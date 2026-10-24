@@ -159,3 +159,37 @@ export interface VetAppointment {
   status: 'scheduled' | 'completed' | 'cancelled';
   created_at: string;
 }
+
+export interface BodyConditionScore {
+  id: string;
+  pet: string;
+  score: number;
+  assessor_source: string;
+  palpation_notes: string;
+  silhouette_notes: string;
+  recorded_at: string;
+  created_at: string;
+}
+
+export type ObservationCategory =
+  | 'gait'
+  | 'appetite'
+  | 'hydration'
+  | 'stool'
+  | 'energy'
+  | 'medication'
+  | 'collar_fit'
+  | 'other';
+
+export interface ClinicalObservation {
+  id: string;
+  pet: string;
+  category: ObservationCategory;
+  headline: string;
+  details: string;
+  is_shared_with_vet: boolean;
+  observed_at: string;
+  is_manual_entry: boolean;
+  created_at: string;
+}
+

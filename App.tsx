@@ -14,6 +14,10 @@ import { PetDetailScreen } from './src/screens/PetDetailScreen';
 import { EditPetScreen } from './src/screens/EditPetScreen';
 import { DeviceScannerScreen } from './src/screens/DeviceScannerScreen';
 import { ActivityInsightsScreen } from './src/screens/ActivityInsightsScreen';
+import { VaccinesMedicalRecordsScreen } from './src/screens/VaccinesMedicalRecordsScreen';
+import { ClinicalObservationNotesScreen } from './src/screens/ClinicalObservationNotesScreen';
+import { WeightBodyConditionScreen } from './src/screens/WeightBodyConditionScreen';
+import { ImuTelemetrySimulatorScreen } from './src/screens/ImuTelemetrySimulatorScreen';
 import { BottomTabBar, MainTabType } from './src/components/BottomTabBar';
 import { Pet } from './src/types/api';
 import { Colors } from './src/theme/theme';
@@ -25,7 +29,11 @@ type AppSubScreenState =
   | 'pet_detail'
   | 'edit_pet'
   | 'device_scanner'
-  | 'insights';
+  | 'insights'
+  | 'vaccines'
+  | 'observations'
+  | 'weight'
+  | 'simulator';
 
 const MainNavigator: React.FC = () => {
   const { user, loading } = useAuth();
@@ -132,6 +140,42 @@ const MainNavigator: React.FC = () => {
     );
   }
 
+  if (subScreen === 'vaccines') {
+    return (
+      <VaccinesMedicalRecordsScreen
+        initialPet={selectedPet}
+        onBack={() => setSubScreen('tabs')}
+      />
+    );
+  }
+
+  if (subScreen === 'observations') {
+    return (
+      <ClinicalObservationNotesScreen
+        initialPet={selectedPet}
+        onBack={() => setSubScreen('tabs')}
+      />
+    );
+  }
+
+  if (subScreen === 'weight') {
+    return (
+      <WeightBodyConditionScreen
+        initialPet={selectedPet}
+        onBack={() => setSubScreen('tabs')}
+      />
+    );
+  }
+
+  if (subScreen === 'simulator') {
+    return (
+      <ImuTelemetrySimulatorScreen
+        initialPet={selectedPet}
+        onBack={() => setSubScreen('tabs')}
+      />
+    );
+  }
+
   // Primary 4-Tab Navigation View
   return (
     <View style={styles.tabContainer}>
@@ -152,6 +196,22 @@ const MainNavigator: React.FC = () => {
               setSubScreen('insights');
             }}
             onNavigateToProfile={() => setActiveTab('profile')}
+            onNavigateToVaccines={(pet) => {
+              setSelectedPet(pet);
+              setSubScreen('vaccines');
+            }}
+            onNavigateToObservations={(pet) => {
+              setSelectedPet(pet);
+              setSubScreen('observations');
+            }}
+            onNavigateToWeight={(pet) => {
+              setSelectedPet(pet);
+              setSubScreen('weight');
+            }}
+            onNavigateToSimulator={(pet) => {
+              setSelectedPet(pet);
+              setSubScreen('simulator');
+            }}
           />
         )}
 

@@ -2,6 +2,36 @@ import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { Colors } from '../theme/theme';
 
+// Lucide icon components
+import {
+  House,
+  Activity,
+  Smartphone,
+  UserRound,
+  Plus,
+  ChevronRight,
+  ChevronLeft,
+  Bluetooth,
+  Battery,
+  Flame,
+  Moon,
+  Heart,
+  Check,
+  AlertTriangle,
+  RefreshCw,
+  Clock,
+  Shield,
+  Search,
+  Filter,
+  Download,
+  Settings,
+  Bell,
+  Syringe,
+  Scale,
+  Pill,
+  FileText,
+} from 'lucide-react-native';
+
 export type IconName =
   | 'home'
   | 'activity'
@@ -38,8 +68,8 @@ interface IconProps {
 }
 
 /**
- * Clinical Bio-Care precision geometric vector icons.
- * Pure React Native implementation for zero native binary dependencies and 100% reliability.
+ * Standard Lucide React Native vector icons wrapper.
+ * Provides backwards-compatible typed API matching the existing Pet Health design system.
  */
 export const Icon: React.FC<IconProps> = ({
   name,
@@ -47,393 +77,97 @@ export const Icon: React.FC<IconProps> = ({
   color = Colors.text,
   style,
 }) => {
-  const s = size;
-  const stroke = 1.8;
+  const strokeWidth = 2;
+
+  let IconComponent: React.ElementType;
 
   switch (name) {
     case 'home':
-      return (
-        <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center' }, style]}>
-          <View
-            style={{
-              width: s * 0.72,
-              height: s * 0.72,
-              borderWidth: stroke,
-              borderColor: color,
-              borderRadius: 2,
-              transform: [{ rotate: '45deg' }],
-              position: 'absolute',
-              top: s * 0.05,
-            }}
-          />
-          <View
-            style={{
-              width: s * 0.62,
-              height: s * 0.48,
-              borderWidth: stroke,
-              borderTopWidth: 0,
-              borderColor: color,
-              borderBottomLeftRadius: 2,
-              borderBottomRightRadius: 2,
-              position: 'absolute',
-              bottom: s * 0.12,
-            }}
-          />
-        </View>
-      );
-
+      IconComponent = House;
+      break;
     case 'activity':
-      return (
-        <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center', flexDirection: 'row' }, style]}>
-          <View style={{ width: stroke * 1.4, height: s * 0.38, backgroundColor: color, borderRadius: 1, marginHorizontal: 1.5 }} />
-          <View style={{ width: stroke * 1.4, height: s * 0.75, backgroundColor: color, borderRadius: 1, marginHorizontal: 1.5 }} />
-          <View style={{ width: stroke * 1.4, height: s * 0.55, backgroundColor: color, borderRadius: 1, marginHorizontal: 1.5 }} />
-          <View style={{ width: stroke * 1.4, height: s * 0.3, backgroundColor: color, borderRadius: 1, marginHorizontal: 1.5 }} />
-        </View>
-      );
-
+      IconComponent = Activity;
+      break;
     case 'devices':
-      return (
-        <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center' }, style]}>
-          <View
-            style={{
-              width: s * 0.82,
-              height: s * 0.82,
-              borderRadius: s * 0.41,
-              borderWidth: stroke,
-              borderColor: color,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <View
-              style={{
-                width: s * 0.3,
-                height: s * 0.3,
-                borderRadius: 2,
-                backgroundColor: color,
-              }}
-            />
-          </View>
-        </View>
-      );
-
+      IconComponent = Smartphone;
+      break;
     case 'profile':
-      return (
-        <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center' }, style]}>
-          <View
-            style={{
-              width: s * 0.38,
-              height: s * 0.38,
-              borderRadius: s * 0.19,
-              borderWidth: stroke,
-              borderColor: color,
-              marginBottom: 2,
-            }}
-          />
-          <View
-            style={{
-              width: s * 0.72,
-              height: s * 0.32,
-              borderTopLeftRadius: s * 0.36,
-              borderTopRightRadius: s * 0.36,
-              borderWidth: stroke,
-              borderBottomWidth: 0,
-              borderColor: color,
-            }}
-          />
-        </View>
-      );
-
+      IconComponent = UserRound;
+      break;
     case 'plus':
-      return (
-        <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center' }, style]}>
-          <View style={{ width: s * 0.65, height: stroke, backgroundColor: color, position: 'absolute', borderRadius: 1 }} />
-          <View style={{ width: stroke, height: s * 0.65, backgroundColor: color, position: 'absolute', borderRadius: 1 }} />
-        </View>
-      );
-
+      IconComponent = Plus;
+      break;
     case 'chevron-right':
-      return (
-        <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center' }, style]}>
-          <View
-            style={{
-              width: s * 0.32,
-              height: s * 0.32,
-              borderTopWidth: stroke,
-              borderRightWidth: stroke,
-              borderColor: color,
-              transform: [{ rotate: '45deg' }],
-              marginLeft: -s * 0.08,
-            }}
-          />
-        </View>
-      );
-
+      IconComponent = ChevronRight;
+      break;
     case 'chevron-left':
-      return (
-        <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center' }, style]}>
-          <View
-            style={{
-              width: s * 0.32,
-              height: s * 0.32,
-              borderBottomWidth: stroke,
-              borderLeftWidth: stroke,
-              borderColor: color,
-              transform: [{ rotate: '45deg' }],
-              marginRight: -s * 0.08,
-            }}
-          />
-        </View>
-      );
-
+      IconComponent = ChevronLeft;
+      break;
     case 'bluetooth':
-      return (
-        <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center' }, style]}>
-          <View style={{ width: stroke, height: s * 0.78, backgroundColor: color }} />
-          <View
-            style={{
-              width: s * 0.32,
-              height: s * 0.32,
-              borderRightWidth: stroke,
-              borderTopWidth: stroke,
-              borderColor: color,
-              position: 'absolute',
-              top: s * 0.12,
-              transform: [{ rotate: '45deg' }],
-            }}
-          />
-          <View
-            style={{
-              width: s * 0.32,
-              height: s * 0.32,
-              borderRightWidth: stroke,
-              borderBottomWidth: stroke,
-              borderColor: color,
-              position: 'absolute',
-              bottom: s * 0.12,
-              transform: [{ rotate: '-45deg' }],
-            }}
-          />
-        </View>
-      );
-
+      IconComponent = Bluetooth;
+      break;
     case 'battery':
-      return (
-        <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center', flexDirection: 'row' }, style]}>
-          <View
-            style={{
-              width: s * 0.72,
-              height: s * 0.42,
-              borderRadius: 3,
-              borderWidth: stroke,
-              borderColor: color,
-              padding: 1.5,
-              justifyContent: 'center',
-            }}
-          >
-            <View style={{ width: '70%', height: '100%', backgroundColor: color, borderRadius: 1 }} />
-          </View>
-          <View style={{ width: stroke, height: s * 0.18, backgroundColor: color, borderTopRightRadius: 1, borderBottomRightRadius: 1 }} />
-        </View>
-      );
-
-    case 'download':
-      return (
-        <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center' }, style]}>
-          <View style={{ width: stroke, height: s * 0.5, backgroundColor: color, position: 'absolute', top: s * 0.15 }} />
-          <View
-            style={{
-              width: s * 0.3,
-              height: s * 0.3,
-              borderBottomWidth: stroke,
-              borderRightWidth: stroke,
-              borderColor: color,
-              transform: [{ rotate: '45deg' }],
-              position: 'absolute',
-              top: s * 0.35,
-            }}
-          />
-          <View style={{ width: s * 0.7, height: stroke, backgroundColor: color, position: 'absolute', bottom: s * 0.15 }} />
-        </View>
-      );
-
-    case 'syringe':
-    case 'pill':
-      return (
-        <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center' }, style]}>
-          <View
-            style={{
-              width: s * 0.65,
-              height: s * 0.32,
-              borderRadius: s * 0.16,
-              borderWidth: stroke,
-              borderColor: color,
-              transform: [{ rotate: '-45deg' }],
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <View style={{ width: stroke, height: '100%', backgroundColor: color }} />
-          </View>
-        </View>
-      );
-
-    case 'scale':
-      return (
-        <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center' }, style]}>
-          <View
-            style={{
-              width: s * 0.75,
-              height: s * 0.65,
-              borderRadius: 4,
-              borderWidth: stroke,
-              borderColor: color,
-              justifyContent: 'flex-start',
-              alignItems: 'center',
-              paddingTop: 2,
-            }}
-          >
-            <View style={{ width: s * 0.35, height: s * 0.2, borderTopLeftRadius: 10, borderTopRightRadius: 10, borderWidth: stroke, borderColor: color }} />
-          </View>
-        </View>
-      );
-
-    case 'bell':
-      return (
-        <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center' }, style]}>
-          {/* Bell dome / body */}
-          <View
-            style={{
-              width: s * 0.6,
-              height: s * 0.55,
-              borderTopLeftRadius: s * 0.3,
-              borderTopRightRadius: s * 0.3,
-              borderBottomLeftRadius: 3,
-              borderBottomRightRadius: 3,
-              borderWidth: stroke,
-              borderColor: color,
-              position: 'absolute',
-              top: s * 0.15,
-            }}
-          />
-          {/* Bell lip */}
-          <View
-            style={{
-              width: s * 0.78,
-              height: stroke,
-              backgroundColor: color,
-              position: 'absolute',
-              top: s * 0.7,
-              borderRadius: 1,
-            }}
-          />
-          {/* Bell clapper / bottom ball */}
-          <View
-            style={{
-              width: s * 0.22,
-              height: s * 0.14,
-              borderBottomLeftRadius: s * 0.11,
-              borderBottomRightRadius: s * 0.11,
-              backgroundColor: color,
-              position: 'absolute',
-              bottom: s * 0.08,
-            }}
-          />
-          {/* Bell top loop */}
-          <View
-            style={{
-              width: s * 0.18,
-              height: s * 0.12,
-              borderTopLeftRadius: s * 0.09,
-              borderTopRightRadius: s * 0.09,
-              borderWidth: stroke,
-              borderBottomWidth: 0,
-              borderColor: color,
-              position: 'absolute',
-              top: s * 0.04,
-            }}
-          />
-        </View>
-      );
-
-    case 'file-text':
-      return (
-        <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center' }, style]}>
-          <View
-            style={{
-              width: s * 0.62,
-              height: s * 0.78,
-              borderRadius: 3,
-              borderWidth: stroke,
-              borderColor: color,
-              padding: 2,
-              justifyContent: 'space-around',
-            }}
-          >
-            <View style={{ width: '70%', height: stroke, backgroundColor: color }} />
-            <View style={{ width: '85%', height: stroke, backgroundColor: color }} />
-            <View style={{ width: '50%', height: stroke, backgroundColor: color }} />
-          </View>
-        </View>
-      );
-
+      IconComponent = Battery;
+      break;
+    case 'flame':
+      IconComponent = Flame;
+      break;
+    case 'moon':
+      IconComponent = Moon;
+      break;
+    case 'heart':
+      IconComponent = Heart;
+      break;
     case 'check':
-      return (
-        <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center' }, style]}>
-          <View
-            style={{
-              width: s * 0.32,
-              height: s * 0.58,
-              borderBottomWidth: stroke * 1.3,
-              borderRightWidth: stroke * 1.3,
-              borderColor: color,
-              transform: [{ rotate: '45deg' }],
-              marginTop: -s * 0.1,
-            }}
-          />
-        </View>
-      );
-
+      IconComponent = Check;
+      break;
+    case 'alert':
+      IconComponent = AlertTriangle;
+      break;
+    case 'refresh':
+      IconComponent = RefreshCw;
+      break;
     case 'clock':
-      return (
-        <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center' }, style]}>
-          <View
-            style={{
-              width: s * 0.78,
-              height: s * 0.78,
-              borderRadius: s * 0.39,
-              borderWidth: stroke,
-              borderColor: color,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <View style={{ width: stroke, height: s * 0.24, backgroundColor: color, position: 'absolute', top: s * 0.14 }} />
-            <View style={{ width: s * 0.2, height: stroke, backgroundColor: color, position: 'absolute', right: s * 0.15 }} />
-          </View>
-        </View>
-      );
-
+      IconComponent = Clock;
+      break;
     case 'shield':
+      IconComponent = Shield;
+      break;
+    case 'search':
+      IconComponent = Search;
+      break;
+    case 'filter':
+      IconComponent = Filter;
+      break;
+    case 'download':
+      IconComponent = Download;
+      break;
+    case 'settings':
+      IconComponent = Settings;
+      break;
+    case 'bell':
+      IconComponent = Bell;
+      break;
+    case 'syringe':
+      IconComponent = Syringe;
+      break;
+    case 'scale':
+      IconComponent = Scale;
+      break;
+    case 'pill':
+      IconComponent = Pill;
+      break;
+    case 'file-text':
+      IconComponent = FileText;
+      break;
     default:
-      return (
-        <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center' }, style]}>
-          <View
-            style={{
-              width: s * 0.75,
-              height: s * 0.75,
-              borderRadius: s * 0.375,
-              borderWidth: stroke,
-              borderColor: color,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <View style={{ width: stroke, height: s * 0.24, backgroundColor: color, marginBottom: 2 }} />
-            <View style={{ width: stroke * 1.2, height: stroke * 1.2, borderRadius: stroke * 0.6, backgroundColor: color }} />
-          </View>
-        </View>
-      );
+      IconComponent = Shield;
+      break;
   }
+
+  return (
+    <View style={[{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }, style]}>
+      <IconComponent size={size} color={color} strokeWidth={strokeWidth} />
+    </View>
+  );
 };

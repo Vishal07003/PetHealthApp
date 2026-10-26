@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StatusBar, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -18,9 +18,12 @@ import { VaccinesMedicalRecordsScreen } from './src/screens/VaccinesMedicalRecor
 import { ClinicalObservationNotesScreen } from './src/screens/ClinicalObservationNotesScreen';
 import { WeightBodyConditionScreen } from './src/screens/WeightBodyConditionScreen';
 import { ImuTelemetrySimulatorScreen } from './src/screens/ImuTelemetrySimulatorScreen';
+import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import { BottomTabBar, MainTabType } from './src/components/BottomTabBar';
-import { Pet } from './src/types/api';
+import { Pet, AppNotification } from './src/types/api';
 import { Colors } from './src/theme/theme';
+import { fcmManager } from './src/services/FCMService';
+import { PetService } from './src/services/PetHealthService';
 
 type AuthScreenState = 'login' | 'register';
 type AppSubScreenState =
@@ -33,7 +36,8 @@ type AppSubScreenState =
   | 'vaccines'
   | 'observations'
   | 'weight'
-  | 'simulator';
+  | 'simulator'
+  | 'notifications';
 
 const MainNavigator: React.FC = () => {
   const { user, loading } = useAuth();
@@ -41,6 +45,41 @@ const MainNavigator: React.FC = () => {
   const [activeTab, setActiveTab] = useState<MainTabType>('home');
   const [subScreen, setSubScreen] = useState<AppSubScreenState>('tabs');
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
+
+  // Initialize FCM listeners & routing when authenticated
+  useEffect(() => {
+    if (!user) return;
+
+    fcmManager.initialize(async (payload) => {
+      console.log('[App] Notification action opened:', payload);
+      const petId = payload.pet_id;
+      if (petId) {
+        try {
+          const pets = await PetService.listPets();
+          const targetPet = pets.find((p) => p.id === petId) || null;
+          if (targetPet) setSelectedPet(targetPet);
+        } catch (e) {
+          console.warn('[App] Could not fetch pet for notification:', e);
+        }
+      }
+
+      // Route based on notification type
+      const notifType = payload.notification_type;
+      if (notifType === 'activity_anomaly' || notifType === 'rest_change') {
+        setSubScreen('insights');
+      } else if (notifType === 'vaccine_reminder') {
+        setSubScreen('vaccines');
+      } else if (notifType === 'intake_alert') {
+        setSubScreen('observations');
+      } else if (notifType === 'battery_low') {
+        setActiveTab('devices');
+        setSubScreen('tabs');
+      } else {
+        setActiveTab('home');
+        setSubScreen('tabs');
+      }
+    });
+  }, [user]);
 
   if (loading) {
     return <SplashScreen />;
@@ -57,6 +96,7 @@ const MainNavigator: React.FC = () => {
       <LoginScreen onNavigateToRegister={() => setAuthScreen('register')} />
     );
   }
+
 
   // Modal / Detail Sub-screens
   if (subScreen === 'add_pet') {
@@ -176,6 +216,39 @@ const MainNavigator: React.FC = () => {
     );
   }
 
+  if (subScreen === 'notifications') {
+    return (
+      <NotificationsScreen
+        onBack={() => setSubScreen('tabs')}
+        onNotificationSelect={async (notif: AppNotification) => {
+          // Resolve target pet if specified
+          if (notif.pet) {
+            try {
+              const pets = await PetService.listPets();
+              const targetPet = pets.find((p) => p.id === notif.pet) || null;
+              if (targetPet) setSelectedPet(targetPet);
+            } catch (e) {
+              console.warn('[App] Could not fetch pet for notification:', e);
+            }
+          }
+
+          // Navigate directly to relevant subsystem
+          const notifType = notif.notification_type;
+          if (notifType === 'activity_anomaly' || notifType === 'rest_change') {
+            setSubScreen('insights');
+          } else if (notifType === 'vaccine_reminder') {
+            setSubScreen('vaccines');
+          } else if (notifType === 'intake_alert') {
+            setSubScreen('observations');
+          } else if (notifType === 'battery_low') {
+            setActiveTab('devices');
+            setSubScreen('tabs');
+          }
+        }}
+      />
+    );
+  }
+
   // Primary 4-Tab Navigation View
   return (
     <View style={styles.tabContainer}>
@@ -196,6 +269,7 @@ const MainNavigator: React.FC = () => {
               setSubScreen('insights');
             }}
             onNavigateToProfile={() => setActiveTab('profile')}
+            onNavigateToNotifications={() => setSubScreen('notifications')}
             onNavigateToVaccines={(pet) => {
               setSelectedPet(pet);
               setSubScreen('vaccines');

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "184922333434",
+    "project_id": "pet-healt-34afa",
+    "storage_bucket": "pet-healt-34afa.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:184922333434:android:2e07cc1d2c62b7a8742943",
+        "android_client_info": {
+          "package_name": "com.pethealthapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdX22348056vMuw5UzDHGp7FM62gSIRVM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

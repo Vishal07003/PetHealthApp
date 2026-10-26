@@ -15,6 +15,7 @@ import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
 import { PetService, ClinicalService } from '../services/PetHealthService';
+import { fcmManager } from '../services/FCMService';
 import { Pet, MedicalRecord, VetAppointment, WeightRecord } from '../types/api';
 
 interface ProfileTabProps {
@@ -34,6 +35,39 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
   const [appointments, setAppointments] = useState<VetAppointment[]>([]);
   const [weightRecords, setWeightRecords] = useState<WeightRecord[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [fetchingFCM, setFetchingFCM] = useState(false);
+
+  const handleInspectFCMToken = async () => {
+    if (!__DEV__) return;
+    setFetchingFCM(true);
+    try {
+      const token = await fcmManager.getOrFetchToken();
+      if (token) {
+        Alert.alert(
+          'FCM Registration Token (DEV ONLY)',
+          token,
+          [
+            {
+              text: 'OK',
+            },
+          ],
+          { cancelable: true }
+        );
+      } else {
+        Alert.alert(
+          'Notification Permission Needed',
+          'Could not retrieve FCM token because notification permission was denied or not granted yet.'
+        );
+      }
+    } catch (err: any) {
+      Alert.alert(
+        'FCM Token Retrieval Error',
+        err?.message || 'Failed to retrieve FCM token from device.'
+      );
+    } finally {
+      setFetchingFCM(false);
+    }
+  };
 
   // Modal State for Adding Medical Record
   const [showAddModal, setShowAddModal] = useState(false);
@@ -526,6 +560,26 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
       {/* Telemetry & Diagnostics */}
       <Text style={styles.settingsSectionTitle}>TELEMETRY & DIAGNOSTICS</Text>
       <View style={styles.settingsGroup}>
+        {__DEV__ && (
+          <>
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={handleInspectFCMToken}
+              disabled={fetchingFCM}
+            >
+              <View>
+                <Text style={styles.settingLbl}>View FCM Device Token</Text>
+                <Text style={{ fontSize: 10, color: Colors.primary, fontWeight: '700', marginTop: 2 }}>
+                  DEV ONLY • PUSH REGISTRATION
+                </Text>
+              </View>
+              <Text style={styles.settingVal}>
+                {fetchingFCM ? 'Reading...' : 'Inspect ›'}
+              </Text>
+            </TouchableOpacity>
+            <View style={styles.roadmapDivider} />
+          </>
+        )}
         <TouchableOpacity
           style={styles.settingItem}
           onPress={() => Alert.alert('Export CSV', 'Raw accelerometer CSV ready for download.')}

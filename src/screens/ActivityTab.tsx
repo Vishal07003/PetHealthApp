@@ -15,6 +15,7 @@ import { Icon } from '../components/Icon';
 import { ActivityRings } from '../components/ActivityRings';
 import { Pet, TelemetryReading, ActivitySummary, Device } from '../types/api';
 import { TelemetryService, InsightsService, PetService, DeviceService } from '../services/PetHealthService';
+import { showToast } from '../utils/toast';
 
 interface ActivityTabProps {
   initialPet?: Pet | null;
@@ -108,13 +109,13 @@ export const ActivityTab: React.FC<ActivityTabProps> = ({ initialPet }) => {
       );
       await InsightsService.generateInsights(selectedPet.id);
       await fetchTelemetry(selectedPet.id);
-      Alert.alert('Telemetry Batch Ingested', 'Synthetic IMU data recorded & 24h timeline updated.');
+      showToast('Telemetry recorded & timeline updated.');
     } catch (e) {
       try {
         await InsightsService.generateInsights(selectedPet.id);
         await fetchTelemetry(selectedPet.id);
       } catch (err2) {
-        Alert.alert('Notice', 'Pair collar device to link telemetry.');
+        showToast('Pair collar device to link telemetry.');
       }
     } finally {
       setSimulating(false);

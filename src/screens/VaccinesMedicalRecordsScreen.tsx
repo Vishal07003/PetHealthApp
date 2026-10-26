@@ -16,6 +16,7 @@ import { Icon } from '../components/Icon';
 import { PetAvatar } from '../components/PetAvatar';
 import { Pet, MedicalRecord, VetAppointment } from '../types/api';
 import { ClinicalService, PetService } from '../services/PetHealthService';
+import { showToast } from '../utils/toast';
 
 interface VaccinesMedicalRecordsScreenProps {
   initialPet?: Pet | null;
@@ -80,7 +81,7 @@ export const VaccinesMedicalRecordsScreen: React.FC<VaccinesMedicalRecordsScreen
 
   const handleSaveRecord = async () => {
     if (!selectedPet || !title.trim()) {
-      Alert.alert('Required', 'Please enter a title for the vaccine or medical record.');
+      showToast('Please enter a title for the vaccine or medical record.');
       return;
     }
     setSaving(true);
@@ -105,20 +106,16 @@ export const VaccinesMedicalRecordsScreen: React.FC<VaccinesMedicalRecordsScreen
       setNextDueDate('');
       setNotes('');
       loadData();
-      Alert.alert('Success', 'Vaccine / medical record successfully saved.');
+      showToast('Vaccine / medical record successfully saved.');
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.detail || 'Failed to save record.');
+      showToast(err.response?.data?.detail || 'Failed to save record.');
     } finally {
       setSaving(false);
     }
   };
 
   const handleExportPdf = () => {
-    Alert.alert(
-      'Export Medical Record PDF',
-      `Official clinical dossier for ${selectedPet?.name || 'Pet'} compiled with cryptographic timestamp & batch verification codes. Ready for veterinary sharing.`,
-      [{ text: 'Download PDF', style: 'default' }, { text: 'Cancel', style: 'cancel' }]
-    );
+    showToast(`Dossier compiled for ${selectedPet?.name || 'Pet'}.`);
   };
 
   const pet = selectedPet;
@@ -201,14 +198,14 @@ export const VaccinesMedicalRecordsScreen: React.FC<VaccinesMedicalRecordsScreen
         <View style={styles.reminderActionsRow}>
           <TouchableOpacity
             style={styles.calendarActionBtn}
-            onPress={() => Alert.alert('Calendar', 'Appointment synced with device calendar.')}
+            onPress={() => showToast('Appointment synced with device calendar.')}
           >
             <Icon name="clock" size={14} color={Colors.primary} />
             <Text style={styles.calendarActionText}>Add to Calendar</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.callClinicBtn}
-            onPress={() => Alert.alert('Contact Clinic', 'Calling Valley Veterinary Hospital (555) 019-2834')}
+            onPress={() => showToast('Calling Valley Veterinary Hospital (555) 019-2834')}
           >
             <Icon name="shield" size={14} color="#FFFFFF" />
             <Text style={styles.callClinicText}>Call Clinic</Text>

@@ -13,6 +13,7 @@ import { Icon } from '../components/Icon';
 import { PetAvatar } from '../components/PetAvatar';
 import { Pet } from '../types/api';
 import { PetService } from '../services/PetHealthService';
+import { showToast } from '../utils/toast';
 
 interface PetDetailScreenProps {
   pet: Pet;
@@ -48,9 +49,10 @@ export const PetDetailScreen: React.FC<PetDetailScreenProps> = ({
     setDeleting(true);
     try {
       await PetService.deletePet(pet.id);
+      showToast('Pet profile deleted.');
       onPetDeleted();
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.detail || 'Failed to delete pet profile.');
+      showToast(err.response?.data?.detail || 'Failed to delete pet profile.');
     } finally {
       setDeleting(false);
     }

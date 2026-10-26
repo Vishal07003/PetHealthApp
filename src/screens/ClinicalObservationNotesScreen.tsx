@@ -23,6 +23,7 @@ import {
   IntakeUnit,
   DailyIntakeTotalsResponse,
 } from '../types/api';
+import { showToast } from '../utils/toast';
 import { ClinicalService, PetService } from '../services/PetHealthService';
 
 interface ClinicalObservationNotesScreenProps {
@@ -93,11 +94,11 @@ export const ClinicalObservationNotesScreen: React.FC<ClinicalObservationNotesSc
 
   const handleAddObservation = async () => {
     if (!selectedPet) {
-      Alert.alert('No Pet', 'Please select a pet profile first.');
+      showToast('Please select a pet profile first.');
       return;
     }
     if (!headline.trim()) {
-      Alert.alert('Required', 'Please enter a note headline (e.g. Post-walk paw check).');
+      showToast('Please enter a note headline.');
       return;
     }
     setSubmitting(true);
@@ -112,9 +113,9 @@ export const ClinicalObservationNotesScreen: React.FC<ClinicalObservationNotesSc
       setHeadline('');
       setDetails('');
       loadData();
-      Alert.alert('Observation Logged', 'Clinical observation securely added with manual entry verification tag.');
+      showToast('Clinical observation saved.');
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.detail || 'Failed to save observation.');
+      showToast(err.response?.data?.detail || 'Failed to save observation.');
     } finally {
       setSubmitting(false);
     }
@@ -122,12 +123,12 @@ export const ClinicalObservationNotesScreen: React.FC<ClinicalObservationNotesSc
 
   const handleAddFoodWaterLog = async () => {
     if (!selectedPet) {
-      Alert.alert('No Pet', 'Please select a pet profile first.');
+      showToast('Please select a pet profile first.');
       return;
     }
     const parsedAmount = parseFloat(intakeAmount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid quantity greater than 0.');
+      showToast('Please enter a valid quantity greater than 0.');
       return;
     }
     setSubmittingIntake(true);
@@ -142,12 +143,9 @@ export const ClinicalObservationNotesScreen: React.FC<ClinicalObservationNotesSc
       setIntakeAmount('');
       setIntakeNotes('');
       loadData();
-      Alert.alert(
-        'Intake Recorded',
-        `Manually logged ${parsedAmount} ${intakeUnit} of ${intakeType}. (Identified as manual owner observation)`
-      );
+      showToast(`Logged ${parsedAmount} ${intakeUnit} of ${intakeType}.`);
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.detail || err.response?.data?.amount?.[0] || 'Failed to log consumption.');
+      showToast(err.response?.data?.detail || err.response?.data?.amount?.[0] || 'Failed to log consumption.');
     } finally {
       setSubmittingIntake(false);
     }
@@ -419,14 +417,14 @@ export const ClinicalObservationNotesScreen: React.FC<ClinicalObservationNotesSc
         <View style={styles.toolRow}>
           <TouchableOpacity
             style={styles.toolChip}
-            onPress={() => Alert.alert('Photo Attachment', 'Clinical camera attachment ready.')}
+            onPress={() => showToast('Clinical camera attachment ready.')}
           >
             <Icon name="plus" size={12} color={Colors.textSecondary} />
             <Text style={styles.toolChipText}>Photo</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.toolChip}
-            onPress={() => Alert.alert('Voice Note', 'Microphone audio recording ready.')}
+            onPress={() => showToast('Microphone audio recording ready.')}
           >
             <Icon name="activity" size={12} color={Colors.textSecondary} />
             <Text style={styles.toolChipText}>Voice Note</Text>

@@ -14,6 +14,7 @@ import { Icon } from '../components/Icon';
 import { BlePermissionHandler } from '../services/BlePermissionHandler';
 import { DeviceService } from '../services/PetHealthService';
 import { Pet, Device } from '../types/api';
+import { showToast } from '../utils/toast';
 
 interface DiscoveredDevice {
   id: string;
@@ -101,20 +102,11 @@ export const DeviceScannerScreen: React.FC<DeviceScannerScreenProps> = ({
 
       // 2. Pair device with pet
       const paired = await DeviceService.pairDevice(registered.id, pet.id);
-
-      Alert.alert(
-        'Collar Paired Successfully',
-        `${item.name} is now linked with ${pet.name}. Telemetry ingestion credentials have been securely provisioned.`,
-        [
-          {
-            text: 'View Pet Details',
-            onPress: () => onDevicePaired(paired),
-          },
-        ]
-      );
+      showToast(`${item.name} paired with ${pet.name}.`);
+      onDevicePaired(paired);
     } catch (err: any) {
       const msg = err.response?.data?.detail || err.response?.data?.device_uid || 'Failed to pair device.';
-      Alert.alert('Pairing Error', String(msg));
+      showToast(String(msg));
     } finally {
       setPairingDeviceId(null);
     }

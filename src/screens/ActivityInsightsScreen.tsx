@@ -14,6 +14,7 @@ import { Icon } from '../components/Icon';
 import { PetAvatar } from '../components/PetAvatar';
 import { Pet, TelemetryReading, ActivitySummary } from '../types/api';
 import { TelemetryService, InsightsService } from '../services/PetHealthService';
+import { showToast } from '../utils/toast';
 
 interface ActivityInsightsScreenProps {
   pet: Pet;
@@ -81,14 +82,14 @@ export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ 
       // Compute fresh insight window
       await InsightsService.generateInsights(pet.id);
       await fetchData();
-      Alert.alert('Simulated Telemetry Ingested', '15 synthetic IMU readings recorded and activity window computed.');
+      showToast('15 synthetic IMU readings recorded.');
     } catch (err: any) {
       // In case device credentials are required, compute with existing readings or display message
       try {
         await InsightsService.generateInsights(pet.id);
         await fetchData();
       } catch (err2) {
-        Alert.alert('Simulation Notice', 'Pair a collar device first to associate sensor telemetry with this pet.');
+        showToast('Pair a collar device first to link telemetry.');
       }
     } finally {
       setSimulating(false);

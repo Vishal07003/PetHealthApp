@@ -1,18 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
-  Platform,
-  PermissionsAndroid,
+  Modal,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
-import { launchImageLibrary, Asset } from 'react-native-image-picker';
+import { launchImageLibrary, launchCamera, Asset } from 'react-native-image-picker';
 import { Colors, Spacing } from '../theme/theme';
 import { Icon } from './Icon';
 import { PetAvatar, BUILTIN_AVATARS, BuiltinAvatar } from './PetAvatar';
+import {
+  showToast,
+  requestCameraPermission,
+  checkCameraPermission,
+  openAppSettings,
+  PermissionCheckResult,
+} from '../utils';
 
 interface PetAvatarPickerProps {
   photoUri?: string | null;
@@ -34,38 +41,37 @@ export const PetAvatarPicker: React.FC<PetAvatarPickerProps> = ({
   );
   const [loadingImage, setLoadingImage] = useState(false);
 
-  const requestGalleryPermission = async (): Promise<boolean> => {
-    if (Platform.OS !== 'android') return true;
+  // Permission Explanatory Dialog State
+  const [permissionDialogVisible, setPermissionDialogVisible] = useState(false);
+  const [permissionType, setPermissionType] = useState<'camera' | 'storage'>('camera');
+  const [canRequestAgain, setCanRequestAgain] = useState(true);
+  const [pendingAction, setPendingAction] = useState<'camera' | 'gallery' | null>(null);
 
-    try {
-      if (Platform.Version >= 33) {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } else {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
+  // Monitor AppState to automatically re-check permission when returning from device Settings
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active' && pendingAction) {
+        if (pendingAction === 'camera') {
+          const hasCam = await checkCameraPermission();
+          if (hasCam) {
+            setPermissionDialogVisible(false);
+            setPendingAction(null);
+            launchCameraPicker();
+          }
+        }
       }
-    } catch (err) {
-      console.warn('Permission request error:', err);
-      return false;
-    }
-  };
+    };
 
-  const handlePickPhoto = async () => {
+    const sub = AppState.addEventListener('change', handleAppStateChange);
+    return () => sub.remove();
+  }, [pendingAction]);
+
+  /**
+   * Option A: Gallery Image Selection
+   * Uses Android System Photo Picker (API 30+ / Backport) which requires NO runtime storage permissions.
+   */
+  const handlePickFromGallery = async () => {
     try {
-      const hasPermission = await requestGalleryPermission();
-      if (!hasPermission) {
-        Alert.alert(
-          'Storage Permission Denied',
-          'Please grant photo library access in your system settings to upload pet images.'
-        );
-        return;
-      }
-
       setLoadingImage(true);
       const result = await launchImageLibrary({
         mediaType: 'photo',
@@ -77,11 +83,19 @@ export const PetAvatarPicker: React.FC<PetAvatarPickerProps> = ({
 
       if (result.didCancel) {
         setLoadingImage(false);
+        showToast('Photo selection cancelled.');
         return;
       }
 
       if (result.errorCode) {
-        Alert.alert('Image Picker Error', result.errorMessage || 'Unable to open photo library.');
+        if (result.errorCode === 'permission') {
+          setPermissionType('storage');
+          setCanRequestAgain(false);
+          setPendingAction('gallery');
+          setPermissionDialogVisible(true);
+        } else {
+          showToast(result.errorMessage || 'Unable to open photo library.');
+        }
         setLoadingImage(false);
         return;
       }
@@ -89,25 +103,114 @@ export const PetAvatarPicker: React.FC<PetAvatarPickerProps> = ({
       if (result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         onPhotoSelected(asset);
-        // Clear avatarId when a photo is chosen
         onAvatarSelected(null);
         setActiveMode('photo');
+        showToast('Photo selected from gallery.');
       }
     } catch (err: any) {
-      Alert.alert('Upload Error', err.message || 'Could not pick image.');
+      showToast(err.message || 'Could not pick image.');
     } finally {
       setLoadingImage(false);
     }
   };
 
+  /**
+   * Option B: Camera Capture
+   * Checks runtime CAMERA permission only when the user chooses the Camera action.
+   */
+  const launchCameraPicker = async () => {
+    try {
+      setLoadingImage(true);
+      const result = await launchCamera({
+        mediaType: 'photo',
+        quality: 0.8,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        saveToPhotos: false,
+      });
+
+      if (result.didCancel) {
+        setLoadingImage(false);
+        showToast('Camera capture cancelled.');
+        return;
+      }
+
+      if (result.errorCode) {
+        showToast(result.errorMessage || 'Camera error.');
+        setLoadingImage(false);
+        return;
+      }
+
+      if (result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        onPhotoSelected(asset);
+        onAvatarSelected(null);
+        setActiveMode('photo');
+        showToast('Photo captured with camera.');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Could not launch camera.');
+    } finally {
+      setLoadingImage(false);
+    }
+  };
+
+  const handleTakePhotoWithCamera = async () => {
+    const permResult = await requestCameraPermission();
+    if (permResult === 'granted') {
+      await launchCameraPicker();
+    } else if (permResult === 'never_ask_again') {
+      setPermissionType('camera');
+      setCanRequestAgain(false);
+      setPendingAction('camera');
+      setPermissionDialogVisible(true);
+    } else {
+      // 'denied' (first time or user tapped Not Now)
+      setPermissionType('camera');
+      setCanRequestAgain(true);
+      setPendingAction('camera');
+      setPermissionDialogVisible(true);
+    }
+  };
+
+  const handleTryPermissionAgain = async () => {
+    setPermissionDialogVisible(false);
+    if (pendingAction === 'camera') {
+      const permResult = await requestCameraPermission();
+      if (permResult === 'granted') {
+        setPendingAction(null);
+        await launchCameraPicker();
+      } else if (permResult === 'never_ask_again') {
+        setCanRequestAgain(false);
+        setPermissionDialogVisible(true);
+      } else {
+        showToast('Camera permission denied.');
+      }
+    } else if (pendingAction === 'gallery') {
+      setPendingAction(null);
+      await handlePickFromGallery();
+    }
+  };
+
+  const handleOpenSettingsFromDialog = async () => {
+    await openAppSettings();
+    // Keep pendingAction active so AppState listener re-checks upon return
+  };
+
+  const handleDismissPermissionDialog = () => {
+    setPermissionDialogVisible(false);
+    setPendingAction(null);
+    showToast('Permission request cancelled.');
+  };
+
   const handleRemovePhoto = () => {
     onPhotoSelected(null);
     setActiveMode('avatar');
+    showToast('Photo removed. Avatar mode active.');
   };
 
   const handleSelectAvatar = (item: BuiltinAvatar) => {
     onAvatarSelected(item.id);
-    // Clear photo selection when choosing a built-in avatar
     onPhotoSelected(null);
     setActiveMode('avatar');
   };
@@ -167,7 +270,7 @@ export const PetAvatarPicker: React.FC<PetAvatarPickerProps> = ({
           <Text
             style={[styles.modeTabText, activeMode === 'photo' && styles.modeTabTextActive]}
           >
-            Upload Photo
+            Pet Photo
           </Text>
         </TouchableOpacity>
       </View>
@@ -207,14 +310,22 @@ export const PetAvatarPicker: React.FC<PetAvatarPickerProps> = ({
             <View style={styles.photoActionButtons}>
               <TouchableOpacity
                 style={styles.changePhotoBtn}
-                onPress={handlePickPhoto}
+                onPress={handlePickFromGallery}
                 disabled={loadingImage}
                 activeOpacity={0.7}
               >
                 <Icon name="image" size={14} color={Colors.primary} />
-                <Text style={styles.changePhotoText}>
-                  {loadingImage ? 'Opening Gallery...' : 'Change Photo'}
-                </Text>
+                <Text style={styles.changePhotoText}>Gallery</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.changePhotoBtn}
+                onPress={handleTakePhotoWithCamera}
+                disabled={loadingImage}
+                activeOpacity={0.7}
+              >
+                <Icon name="camera" size={14} color={Colors.primary} />
+                <Text style={styles.changePhotoText}>Camera</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -222,28 +333,102 @@ export const PetAvatarPicker: React.FC<PetAvatarPickerProps> = ({
                 onPress={handleRemovePhoto}
                 activeOpacity={0.7}
               >
-                <Text style={styles.removeBtnText}>Remove Photo</Text>
+                <Text style={styles.removeBtnText}>Remove</Text>
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity
-              style={styles.uploadCtaBtn}
-              onPress={handlePickPhoto}
-              disabled={loadingImage}
-              activeOpacity={0.8}
-            >
-              {loadingImage ? (
-                <ActivityIndicator size="small" color={Colors.primary} />
-              ) : (
-                <>
-                  <Icon name="camera" size={18} color={Colors.primary} />
-                  <Text style={styles.uploadCtaText}>Choose Photo from Gallery</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            <View style={styles.dualPickerRow}>
+              <TouchableOpacity
+                style={styles.pickerCtaBtn}
+                onPress={handlePickFromGallery}
+                disabled={loadingImage}
+                activeOpacity={0.8}
+              >
+                {loadingImage ? (
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                ) : (
+                  <>
+                    <Icon name="image" size={16} color={Colors.primary} />
+                    <Text style={styles.pickerCtaText}>Choose from Gallery</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.pickerCtaBtn, styles.pickerCtaBtnSecondary]}
+                onPress={handleTakePhotoWithCamera}
+                disabled={loadingImage}
+                activeOpacity={0.8}
+              >
+                <Icon name="camera" size={16} color={Colors.textSecondary} />
+                <Text style={[styles.pickerCtaText, { color: Colors.text }]}>Take Photo</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       )}
+
+      {/* Permission Explanation Dialog Modal */}
+      <Modal
+        visible={permissionDialogVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={handleDismissPermissionDialog}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconBox}>
+              <Icon
+                name={permissionType === 'camera' ? 'camera' : 'image'}
+                size={26}
+                color={Colors.primary}
+              />
+            </View>
+
+            <Text style={styles.modalTitle}>
+              {permissionType === 'camera' ? 'Camera Access Required' : 'Storage Access Required'}
+            </Text>
+
+            <Text style={styles.modalDescription}>
+              {canRequestAgain
+                ? `Pet Health needs ${
+                    permissionType === 'camera' ? 'camera' : 'photo library'
+                  } access to let you capture or choose photos of your pet. Would you like to grant access now?`
+                : `${
+                    permissionType === 'camera' ? 'Camera' : 'Storage'
+                  } permission has been disabled for this app. Please open System Settings to allow access.`}
+            </Text>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelActionBtn}
+                onPress={handleDismissPermissionDialog}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.cancelActionText}>Cancel</Text>
+              </TouchableOpacity>
+
+              {canRequestAgain ? (
+                <TouchableOpacity
+                  style={styles.primaryActionBtn}
+                  onPress={handleTryPermissionAgain}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.primaryActionText}>Try Again</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.primaryActionBtn}
+                  onPress={handleOpenSettingsFromDialog}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.primaryActionText}>Open Settings</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -347,33 +532,42 @@ const styles = StyleSheet.create({
     marginTop: 4,
     alignItems: 'center',
   },
-  uploadCtaBtn: {
+  dualPickerRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  pickerCtaBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: 10,
     backgroundColor: Colors.primaryLight,
     borderWidth: 1,
     borderColor: Colors.primary,
   },
-  uploadCtaText: {
-    fontSize: 13,
+  pickerCtaBtnSecondary: {
+    backgroundColor: Colors.surface,
+    borderColor: Colors.border,
+  },
+  pickerCtaText: {
+    fontSize: 12,
     fontWeight: '700',
     color: Colors.primary,
   },
   photoActionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   changePhotoBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     borderRadius: 8,
     backgroundColor: Colors.primaryLight,
   },
@@ -383,8 +577,8 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   removePhotoBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     borderRadius: 8,
     backgroundColor: '#FEF2F2',
   },
@@ -392,5 +586,79 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: Colors.danger,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  modalContent: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: Spacing.lg,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  modalIconBox: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: Colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalDescription: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: Spacing.md,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  cancelActionBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: Colors.background,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  cancelActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  primaryActionBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+  },
+  primaryActionText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

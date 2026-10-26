@@ -17,6 +17,7 @@ import { Icon } from '../components/Icon';
 import { PetAvatar } from '../components/PetAvatar';
 import { Pet, WeightRecord, BodyConditionScore } from '../types/api';
 import { ClinicalService, PetService } from '../services/PetHealthService';
+import { showToast } from '../utils/toast';
 
 interface WeightBodyConditionScreenProps {
   initialPet?: Pet | null;
@@ -83,12 +84,12 @@ export const WeightBodyConditionScreen: React.FC<WeightBodyConditionScreenProps>
 
   const handleSaveWeight = async () => {
     if (!selectedPet || !weightInput.trim()) {
-      Alert.alert('Required', 'Please enter a valid weight in kg.');
+      showToast('Please enter a valid weight in kg.');
       return;
     }
     const val = parseFloat(weightInput);
     if (isNaN(val) || val <= 0) {
-      Alert.alert('Invalid', 'Please enter a positive weight number.');
+      showToast('Please enter a positive weight number.');
       return;
     }
     setSavingWeight(true);
@@ -98,9 +99,9 @@ export const WeightBodyConditionScreen: React.FC<WeightBodyConditionScreenProps>
       setWeightInput('');
       setWeightNotes('');
       loadData();
-      Alert.alert('Success', 'Weight entry logged.');
+      showToast('Weight entry logged.');
     } catch (e: any) {
-      Alert.alert('Error', e.response?.data?.detail || 'Failed to log weight.');
+      showToast(e.response?.data?.detail || 'Failed to log weight.');
     } finally {
       setSavingWeight(false);
     }
@@ -119,9 +120,9 @@ export const WeightBodyConditionScreen: React.FC<WeightBodyConditionScreenProps>
       });
       setShowBcsModal(false);
       loadData();
-      Alert.alert('Success', 'Body Condition Score assessment logged.');
+      showToast('Body Condition Score assessment logged.');
     } catch (e: any) {
-      Alert.alert('Error', e.response?.data?.detail || 'Failed to log BCS.');
+      showToast(e.response?.data?.detail || 'Failed to log BCS.');
     } finally {
       setSavingBcs(false);
     }

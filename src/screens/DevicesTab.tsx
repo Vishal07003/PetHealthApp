@@ -15,6 +15,7 @@ import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
 import { Device, Pet } from '../types/api';
 import { DeviceService, PetService } from '../services/PetHealthService';
+import { showToast } from '../utils/toast';
 
 interface DevicesTabProps {
   onNavigateToScanner: (pet: Pet) => void;
@@ -55,7 +56,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ onNavigateToScanner }) =
     if (pets.length > 0) {
       onNavigateToScanner(pets[0]);
     } else {
-      Alert.alert('No Pet Registered', 'Please register a pet profile before pairing a wearable collar.');
+      showToast('Please register a pet profile before pairing a collar.');
     }
   };
 
@@ -160,7 +161,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ onNavigateToScanner }) =
 
         <TouchableOpacity
           style={styles.syncNowBtn}
-          onPress={() => Alert.alert('Telemetry Synchronized', 'ESP32 collar synced successfully with backend.')}
+          onPress={() => showToast('ESP32 collar synced successfully with backend.')}
           activeOpacity={0.8}
         >
           <Icon name="refresh" size={14} color={Colors.primaryDark} />
@@ -224,7 +225,7 @@ export const DevicesTab: React.FC<DevicesTabProps> = ({ onNavigateToScanner }) =
       {/* Protocol Guide */}
       <TouchableOpacity
         style={styles.protocolRow}
-        onPress={() => Alert.alert('Protocol Info', 'Collar communicates via BLE 4.2+ GATT and Fallback Wi-Fi HTTP POST.')}
+        onPress={() => showToast('Collar communicates via BLE 4.2+ GATT and Fallback Wi-Fi HTTP POST.')}
         activeOpacity={0.7}
       >
         <Icon name="shield" size={16} color={Colors.primary} />

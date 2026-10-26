@@ -16,6 +16,7 @@ import { PetService } from '../services/PetHealthService';
 import { Pet, PetSpecies, PetSex } from '../types/api';
 import { PetAvatarPicker } from '../components/PetAvatarPicker';
 import { Asset } from 'react-native-image-picker';
+import { showToast } from '../utils/toast';
 
 interface EditPetScreenProps {
   pet: Pet;
@@ -126,6 +127,7 @@ export const EditPetScreen: React.FC<EditPetScreenProps> = ({
       }
 
       const updated = await PetService.updatePet(pet.id, updatePayload);
+      showToast(`${updated.name} updated successfully.`);
       onPetUpdated(updated);
     } catch (err: any) {
       const respData = err.response?.data;
@@ -174,7 +176,11 @@ export const EditPetScreen: React.FC<EditPetScreenProps> = ({
           species={species}
           onPhotoSelected={(asset) => {
             setPhotoAsset(asset);
-            setPhotoRemoved(!asset && !currentPhotoUri);
+            if (!asset) {
+              setPhotoRemoved(true);
+            } else {
+              setPhotoRemoved(false);
+            }
           }}
           onAvatarSelected={(id) => {
             setAvatarId(id);

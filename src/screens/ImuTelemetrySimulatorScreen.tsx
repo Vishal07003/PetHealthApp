@@ -12,6 +12,7 @@ import { Colors, Spacing, Typography } from '../theme/theme';
 import { Icon } from '../components/Icon';
 import { Pet, TelemetryReading } from '../types/api';
 import { TelemetryService, PetService } from '../services/PetHealthService';
+import { showToast } from '../utils/toast';
 
 interface ImuTelemetrySimulatorScreenProps {
   initialPet?: Pet | null;
@@ -90,16 +91,13 @@ export const ImuTelemetrySimulatorScreen: React.FC<ImuTelemetrySimulatorScreenPr
   const handleInjectAnomaly = () => {
     setAnomalyInjected(true);
     setActiveMotionPreset('limp');
-    Alert.alert(
-      'Gait Stifle Anomaly Injected',
-      'Telemetry vector stream modified to simulate a left hind-leg stride asymmetry (74% gait symmetry index). All records tagged is_simulation=true.'
-    );
+    showToast('Gait Stifle Anomaly Injected (74% symmetry).');
   };
 
   const handleResetBaseline = () => {
     setAnomalyInjected(false);
     setActiveMotionPreset('trot');
-    Alert.alert('Baseline Restored', 'Standard harmonic trotting telemetry resumed.');
+    showToast('Standard harmonic baseline restored.');
   };
 
   const currentVector = recentVectors[0] || { x: -0.02, y: 0.01, z: 1.02, gyroP: -0.6, gyroY: 0.0, gyroR: 18.2 };

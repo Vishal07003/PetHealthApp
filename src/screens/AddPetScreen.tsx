@@ -16,6 +16,7 @@ import { PetService } from '../services/PetHealthService';
 import { Pet, PetSpecies, PetSex } from '../types/api';
 import { PetAvatarPicker } from '../components/PetAvatarPicker';
 import { Asset } from 'react-native-image-picker';
+import { showToast } from '../utils/toast';
 
 interface AddPetScreenProps {
   onBack: () => void;
@@ -112,6 +113,7 @@ export const AddPetScreen: React.FC<AddPetScreenProps> = ({ onBack, onPetCreated
         avatar_id: avatarId || null,
         notes: notes.trim(),
       });
+      showToast(`${newPet.name} created successfully.`);
       onPetCreated(newPet);
     } catch (err: any) {
       const respData = err.response?.data;

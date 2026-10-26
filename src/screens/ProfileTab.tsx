@@ -18,6 +18,7 @@ import { useAuth } from '../context/AuthContext';
 import { PetService, ClinicalService } from '../services/PetHealthService';
 import { fcmManager } from '../services/FCMService';
 import { Pet, MedicalRecord, VetAppointment, WeightRecord } from '../types/api';
+import { showToast } from '../utils/toast';
 
 interface ProfileTabProps {
   onNavigateToPetSelect?: () => void;
@@ -44,27 +45,12 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
     try {
       const token = await fcmManager.getOrFetchToken();
       if (token) {
-        Alert.alert(
-          'FCM Registration Token (DEV ONLY)',
-          token,
-          [
-            {
-              text: 'OK',
-            },
-          ],
-          { cancelable: true }
-        );
+        showToast('FCM Token copied / ready.');
       } else {
-        Alert.alert(
-          'Notification Permission Needed',
-          'Could not retrieve FCM token because notification permission was denied or not granted yet.'
-        );
+        showToast('Notification permission needed for FCM token.');
       }
     } catch (err: any) {
-      Alert.alert(
-        'FCM Token Retrieval Error',
-        err?.message || 'Failed to retrieve FCM token from device.'
-      );
+      showToast(err?.message || 'Failed to retrieve FCM token from device.');
     } finally {
       setFetchingFCM(false);
     }
@@ -119,7 +105,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
 
   const handleSaveMedicalRecord = async () => {
     if (!selectedPet || !newTitle.trim()) {
-      Alert.alert('Required', 'Please enter a title for this clinical record.');
+      showToast('Please enter a title for this clinical record.');
       return;
     }
     setSavingRecord(true);
@@ -138,9 +124,9 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
       setNewVet('');
       setNewDesc('');
       loadData();
-      Alert.alert('Success', 'Clinical record added to patient dossier.');
+      showToast('Clinical record added to patient dossier.');
     } catch (e: any) {
-      Alert.alert('Error', e.response?.data?.detail || 'Failed to add clinical record.');
+      showToast(e.response?.data?.detail || 'Failed to add clinical record.');
     } finally {
       setSavingRecord(false);
     }
@@ -148,12 +134,12 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
 
   const handleSaveWeight = async () => {
     if (!selectedPet || !newWeight.trim()) {
-      Alert.alert('Required', 'Please enter weight in kg.');
+      showToast('Please enter weight in kg.');
       return;
     }
     const val = parseFloat(newWeight);
     if (isNaN(val) || val <= 0) {
-      Alert.alert('Invalid', 'Please enter a valid weight number.');
+      showToast('Please enter a valid weight number.');
       return;
     }
     setSavingWeight(true);
@@ -163,9 +149,9 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
       setNewWeight('');
       setWeightNotes('');
       loadData();
-      Alert.alert('Success', 'Weight entry logged.');
+      showToast('Weight entry logged.');
     } catch (e: any) {
-      Alert.alert('Error', e.response?.data?.detail || 'Failed to record weight.');
+      showToast(e.response?.data?.detail || 'Failed to record weight.');
     } finally {
       setSavingWeight(false);
     }

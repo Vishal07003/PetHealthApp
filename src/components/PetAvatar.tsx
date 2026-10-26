@@ -73,8 +73,10 @@ export const PetAvatar: React.FC<PetAvatarProps> = ({
 
   const borderRadius = size / 2;
 
-  // 1. If photo is available, render Image
-  if (resolvedPhoto) {
+  const [imageError, setImageError] = React.useState(false);
+
+  // 1. If photo is available and hasn't errored out, render Image
+  if (resolvedPhoto && !imageError) {
     return (
       <View
         style={[
@@ -92,6 +94,7 @@ export const PetAvatar: React.FC<PetAvatarProps> = ({
       >
         <Image
           source={{ uri: resolvedPhoto }}
+          onError={() => setImageError(true)}
           style={[
             {
               width: size - borderWidth * 2,

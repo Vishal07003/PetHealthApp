@@ -225,11 +225,11 @@ export const ImuTelemetrySimulatorScreen: React.FC<ImuTelemetrySimulatorScreenPr
           onPress={() => setActiveMotionPreset('limp')}
           activeOpacity={0.8}
         >
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text style={[styles.presetName, activeMotionPreset === 'limp' && styles.presetNameAnomaly]}>
               Stifle Limp
             </Text>
-            <Text style={{ fontSize: 10 }}>⚠️</Text>
+            <Icon name="alert" size={13} color="#B45309" />
           </View>
           <Text style={styles.presetDetail}>74% gait symmetry</Text>
           <Text style={[styles.presetCadence, { color: '#B45309' }]}>Anomalous Stride</Text>
@@ -364,7 +364,7 @@ export const ImuTelemetrySimulatorScreen: React.FC<ImuTelemetrySimulatorScreenPr
       >
         <Icon name="alert" size={16} color={anomalyInjected ? '#B45309' : Colors.tertiary} />
         <Text style={[styles.injectAnomalyText, anomalyInjected && { color: '#B45309' }]}>
-          {anomalyInjected ? 'Stifle Gait Anomaly Injected' : '⚡ Inject Gait Stifle Anomaly'}
+          {anomalyInjected ? 'Stifle Gait Anomaly Injected' : 'Inject Gait Stifle Anomaly'}
         </Text>
       </TouchableOpacity>
 

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Colors, Spacing, Typography } from '../theme/theme';
 import { Icon } from '../components/Icon';
+import { PetAvatar } from '../components/PetAvatar';
 import {
   Pet,
   ClinicalObservation,
@@ -164,7 +165,6 @@ export const ClinicalObservationNotesScreen: React.FC<ClinicalObservationNotesSc
   };
 
   const pet = selectedPet;
-  const avatar = pet?.species === 'cat' ? '🐱' : pet?.species === 'dog' ? '🐶' : '🐾';
   const todayFoodTotal = dailyTotals?.totals.find((t) => t.intake_type === 'food') || null;
   const todayWaterTotal = dailyTotals?.totals.find((t) => t.intake_type === 'water') || null;
 
@@ -197,9 +197,11 @@ export const ClinicalObservationNotesScreen: React.FC<ClinicalObservationNotesSc
       {/* Patient Hero Badge Card */}
       <View style={styles.heroCard}>
         <View style={styles.heroTopRow}>
-          <View style={styles.avatarBox}>
-            <Text style={styles.avatarEmoji}>{avatar}</Text>
-          </View>
+          <PetAvatar
+            pet={pet}
+            size={52}
+            style={{ marginRight: 12 }}
+          />
           <View style={styles.heroInfo}>
             <View style={styles.nameRow}>
               <Text style={styles.petName}>{pet?.name || 'Cooper'}</Text>

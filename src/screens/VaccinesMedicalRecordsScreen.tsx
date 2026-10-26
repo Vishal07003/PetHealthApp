@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Colors, Spacing, Typography } from '../theme/theme';
 import { Icon } from '../components/Icon';
+import { PetAvatar } from '../components/PetAvatar';
 import { Pet, MedicalRecord, VetAppointment } from '../types/api';
 import { ClinicalService, PetService } from '../services/PetHealthService';
 
@@ -121,7 +122,6 @@ export const VaccinesMedicalRecordsScreen: React.FC<VaccinesMedicalRecordsScreen
   };
 
   const pet = selectedPet;
-  const avatar = pet?.species === 'cat' ? '🐱' : pet?.species === 'dog' ? '🐶' : '🐾';
 
   return (
     <ScrollView
@@ -152,9 +152,11 @@ export const VaccinesMedicalRecordsScreen: React.FC<VaccinesMedicalRecordsScreen
       {/* Patient Hero Badge Card */}
       <View style={styles.heroCard}>
         <View style={styles.heroTopRow}>
-          <View style={styles.avatarBox}>
-            <Text style={styles.avatarEmoji}>{avatar}</Text>
-          </View>
+          <PetAvatar
+            pet={pet}
+            size={54}
+            style={{ marginRight: 12 }}
+          />
           <View style={styles.heroInfo}>
             <View style={styles.nameRow}>
               <Text style={styles.petName}>{pet?.name || 'Cooper'}</Text>

@@ -20,6 +20,8 @@ export interface Pet {
   weight_kg: string | null;
   is_neutered: boolean;
   microchip_number: string;
+  photo?: string | null;
+  avatar_id?: string | null;
   notes: string;
   owner: string;
   owner_id: number;
@@ -36,6 +38,8 @@ export interface PetCreatePayload {
   weight_kg?: string | null;
   is_neutered?: boolean;
   microchip_number?: string;
+  photo?: any; // String URL or FormData file
+  avatar_id?: string | null;
   notes?: string;
 }
 

@@ -12,6 +12,7 @@ import { Colors, Spacing, Typography } from '../theme/theme';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
 import { ActivityRings } from '../components/ActivityRings';
+import { PetAvatar } from '../components/PetAvatar';
 import { Pet, ActivitySummary, Device, VetAppointment, MedicalRecord } from '../types/api';
 import { PetService, InsightsService, DeviceService, ClinicalService, NotificationService } from '../services/PetHealthService';
 import { useAuth } from '../context/AuthContext';
@@ -102,10 +103,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const onRefresh = () => {
     setRefreshing(true);
     loadData();
-  };
-
-  const getAvatar = (pet: Pet) => {
-    return pet.species === 'cat' ? '🐱' : pet.species === 'dog' ? '🐶' : '🐾';
   };
 
   const activeMins = summary?.active_minutes || 0;
@@ -223,9 +220,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             onPress={() => onSelectPet(selectedPet)}
           >
             <View style={styles.dossierTop}>
-              <View style={styles.avatarBox}>
-                <Text style={styles.avatarEmoji}>{getAvatar(selectedPet)}</Text>
-              </View>
+              <PetAvatar
+                pet={selectedPet}
+                size={54}
+                style={styles.avatarBox}
+              />
               <View style={styles.dossierInfo}>
                 <Text style={styles.dossierName}>{selectedPet.name}</Text>
                 <Text style={styles.dossierSub}>

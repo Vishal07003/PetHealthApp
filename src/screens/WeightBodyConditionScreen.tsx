@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Colors, Spacing, Typography } from '../theme/theme';
 import { Icon } from '../components/Icon';
+import { PetAvatar } from '../components/PetAvatar';
 import { Pet, WeightRecord, BodyConditionScore } from '../types/api';
 import { ClinicalService, PetService } from '../services/PetHealthService';
 
@@ -145,7 +146,6 @@ export const WeightBodyConditionScreen: React.FC<WeightBodyConditionScreenProps>
   };
 
   const pet = selectedPet;
-  const avatar = pet?.species === 'cat' ? '🐱' : pet?.species === 'dog' ? '🐶' : '🐾';
   const latestWeight = weightRecords.length > 0 ? parseFloat(weightRecords[0].weight_kg) : (pet?.weight_kg ? parseFloat(String(pet.weight_kg)) : 28.5);
   const latestBcs = bcsRecords.length > 0 ? bcsRecords[0] : null;
   const bcsScore = latestBcs ? latestBcs.score : 5;
@@ -179,9 +179,11 @@ export const WeightBodyConditionScreen: React.FC<WeightBodyConditionScreenProps>
       {/* Patient Hero Badge Card */}
       <View style={styles.heroCard}>
         <View style={styles.heroTopRow}>
-          <View style={styles.avatarBox}>
-            <Text style={styles.avatarEmoji}>{avatar}</Text>
-          </View>
+          <PetAvatar
+            pet={pet}
+            size={52}
+            style={{ marginRight: 12 }}
+          />
           <View style={styles.heroInfo}>
             <View style={styles.nameRow}>
               <Text style={styles.petName}>{pet?.name || 'Milo'}</Text>

@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Switch,
+  Alert,
 } from 'react-native';
 import { Colors, Spacing, Typography } from '../theme/theme';
 import { Input } from '../components/Input';
@@ -13,6 +14,8 @@ import { Icon } from '../components/Icon';
 import { KeyboardAwareContainer } from '../components/KeyboardAwareContainer';
 import { PetService } from '../services/PetHealthService';
 import { Pet, PetSpecies, PetSex } from '../types/api';
+import { PetAvatarPicker } from '../components/PetAvatarPicker';
+import { Asset } from 'react-native-image-picker';
 
 interface EditPetScreenProps {
   pet: Pet;
@@ -34,9 +37,41 @@ export const EditPetScreen: React.FC<EditPetScreenProps> = ({
   const [isNeutered, setIsNeutered] = useState(pet.is_neutered);
   const [microchipNumber, setMicrochipNumber] = useState(pet.microchip_number || '');
   const [notes, setNotes] = useState(pet.notes || '');
+  const [photoAsset, setPhotoAsset] = useState<Asset | null>(null);
+  const [photoRemoved, setPhotoRemoved] = useState(false);
+  const [avatarId, setAvatarId] = useState<string | null>(pet.avatar_id || null);
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const isDirty =
+    name !== pet.name ||
+    species !== pet.species ||
+    breed !== (pet.breed || '') ||
+    sex !== pet.sex ||
+    dateOfBirth !== (pet.date_of_birth || '') ||
+    weightKg !== (pet.weight_kg ? String(pet.weight_kg) : '') ||
+    isNeutered !== pet.is_neutered ||
+    microchipNumber !== (pet.microchip_number || '') ||
+    notes !== (pet.notes || '') ||
+    photoAsset !== null ||
+    photoRemoved ||
+    avatarId !== (pet.avatar_id || null);
+
+  const handleCancel = () => {
+    if (isDirty) {
+      Alert.alert(
+        'Discard Changes?',
+        'You have unsaved changes in this pet profile. Are you sure you want to discard them?',
+        [
+          { text: 'Keep Editing', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: onBack },
+        ]
+      );
+    } else {
+      onBack();
+    }
+  };
 
   const validate = () => {
     const errs: Record<string, string> = {};
@@ -71,7 +106,7 @@ export const EditPetScreen: React.FC<EditPetScreenProps> = ({
     setLoading(true);
     setErrors({});
     try {
-      const updated = await PetService.updatePet(pet.id, {
+      const updatePayload: any = {
         name: name.trim(),
         species,
         breed: breed.trim(),
@@ -80,8 +115,17 @@ export const EditPetScreen: React.FC<EditPetScreenProps> = ({
         weight_kg: weightKg ? parseFloat(weightKg).toFixed(2) : null,
         is_neutered: isNeutered,
         microchip_number: microchipNumber.trim(),
+        avatar_id: avatarId || null,
         notes: notes.trim(),
-      });
+      };
+
+      if (photoAsset) {
+        updatePayload.photo = photoAsset;
+      } else if (photoRemoved) {
+        updatePayload.photo = null;
+      }
+
+      const updated = await PetService.updatePet(pet.id, updatePayload);
       onPetUpdated(updated);
     } catch (err: any) {
       const respData = err.response?.data;
@@ -99,10 +143,16 @@ export const EditPetScreen: React.FC<EditPetScreenProps> = ({
     }
   };
 
+  const currentPhotoUri = photoRemoved
+    ? null
+    : photoAsset
+    ? photoAsset.uri
+    : pet.photo;
+
   return (
     <KeyboardAwareContainer contentContainerStyle={styles.container}>
       <View style={styles.navRow}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+        <TouchableOpacity onPress={handleCancel} style={styles.backBtn} activeOpacity={0.7}>
           <Icon name="chevron-left" size={18} color={Colors.primary} />
           <Text style={styles.backBtnText}>Cancel</Text>
         </TouchableOpacity>
@@ -117,6 +167,24 @@ export const EditPetScreen: React.FC<EditPetScreenProps> = ({
       )}
 
       <View style={styles.formCard}>
+        {/* Photo Upload & Built-in Avatar Selection */}
+        <PetAvatarPicker
+          photoUri={currentPhotoUri}
+          avatarId={avatarId}
+          species={species}
+          onPhotoSelected={(asset) => {
+            setPhotoAsset(asset);
+            setPhotoRemoved(!asset && !currentPhotoUri);
+          }}
+          onAvatarSelected={(id) => {
+            setAvatarId(id);
+            if (id) {
+              setPhotoAsset(null);
+              setPhotoRemoved(true);
+            }
+          }}
+        />
+
         <Input
           label="Pet Name *"
           value={name}
@@ -209,7 +277,7 @@ export const EditPetScreen: React.FC<EditPetScreenProps> = ({
         <View style={styles.btnRow}>
           <TouchableOpacity
             style={styles.cancelBtn}
-            onPress={onBack}
+            onPress={handleCancel}
             activeOpacity={0.7}
           >
             <Text style={styles.cancelBtnText}>Cancel</Text>

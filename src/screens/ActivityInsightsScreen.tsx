@@ -11,6 +11,7 @@ import {
 import { Colors, Spacing, Typography } from '../theme/theme';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
+import { PetAvatar } from '../components/PetAvatar';
 import { Pet, TelemetryReading, ActivitySummary } from '../types/api';
 import { TelemetryService, InsightsService } from '../services/PetHealthService';
 
@@ -107,10 +108,20 @@ export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ 
 
       {/* Pet Header */}
       <View style={styles.headerCard}>
-        <Text style={styles.petTitle}>{pet.name}'s Health Insights</Text>
-        <Text style={styles.petSubtitle}>
-          Statistical movement observation derived from wearable 3-axis accelerometer/gyroscope sensors.
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+          <PetAvatar
+            photoUrl={pet.photo}
+            avatarId={pet.avatar_id}
+            species={pet.species}
+            size={52}
+          />
+          <View style={{ marginLeft: 12, flex: 1 }}>
+            <Text style={styles.petTitle}>{pet.name}'s Health Insights</Text>
+            <Text style={styles.petSubtitle}>
+              Statistical movement observation derived from wearable 3-axis sensors.
+            </Text>
+          </View>
+        </View>
         <View style={styles.disclaimerBadge}>
           <Text style={styles.disclaimerText}>
             Probabilistic Observation: Not a veterinary diagnosis.

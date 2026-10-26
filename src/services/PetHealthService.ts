@@ -86,11 +86,48 @@ export const PetService = {
   },
 
   async createPet(payload: PetCreatePayload): Promise<Pet> {
+    if (payload.photo && typeof payload.photo === 'object' && payload.photo.uri) {
+      const formData = new FormData();
+      Object.entries(payload).forEach(([key, val]) => {
+        if (key === 'photo') {
+          formData.append('photo', {
+            uri: val.uri,
+            type: val.type || 'image/jpeg',
+            name: val.fileName || 'pet_photo.jpg',
+          } as any);
+        } else if (val !== undefined && val !== null) {
+          formData.append(key, String(val));
+        }
+      });
+      const response = await apiClient.post<Pet>(API_ENDPOINTS.PETS, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    }
     const response = await apiClient.post<Pet>(API_ENDPOINTS.PETS, payload);
     return response.data;
   },
 
   async updatePet(id: string, payload: PetUpdatePayload): Promise<Pet> {
+    if (payload.photo && typeof payload.photo === 'object' && payload.photo.uri) {
+      const formData = new FormData();
+      Object.entries(payload).forEach(([key, val]) => {
+        if (key === 'photo') {
+          const photoObj = val as any;
+          formData.append('photo', {
+            uri: photoObj.uri,
+            type: photoObj.type || 'image/jpeg',
+            name: photoObj.fileName || 'pet_photo.jpg',
+          } as any);
+        } else if (val !== undefined && val !== null) {
+          formData.append(key, String(val));
+        }
+      });
+      const response = await apiClient.patch<Pet>(API_ENDPOINTS.PET_DETAIL(id), formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    }
     const response = await apiClient.patch<Pet>(API_ENDPOINTS.PET_DETAIL(id), payload);
     return response.data;
   },

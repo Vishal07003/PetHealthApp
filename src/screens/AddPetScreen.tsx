@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Switch,
+  Alert,
 } from 'react-native';
 import { Colors, Spacing, Typography } from '../theme/theme';
 import { Input } from '../components/Input';
@@ -13,6 +14,8 @@ import { Icon } from '../components/Icon';
 import { KeyboardAwareContainer } from '../components/KeyboardAwareContainer';
 import { PetService } from '../services/PetHealthService';
 import { Pet, PetSpecies, PetSex } from '../types/api';
+import { PetAvatarPicker } from '../components/PetAvatarPicker';
+import { Asset } from 'react-native-image-picker';
 
 interface AddPetScreenProps {
   onBack: () => void;
@@ -29,9 +32,39 @@ export const AddPetScreen: React.FC<AddPetScreenProps> = ({ onBack, onPetCreated
   const [isNeutered, setIsNeutered] = useState(false);
   const [microchipNumber, setMicrochipNumber] = useState('');
   const [notes, setNotes] = useState('');
+  const [photoAsset, setPhotoAsset] = useState<Asset | null>(null);
+  const [avatarId, setAvatarId] = useState<string | null>('dog-golden');
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const isDirty = Boolean(
+    name.trim() ||
+    breed.trim() ||
+    dateOfBirth.trim() ||
+    weightKg.trim() ||
+    microchipNumber.trim() ||
+    notes.trim() ||
+    photoAsset ||
+    isNeutered ||
+    species !== 'dog' ||
+    sex !== 'unknown'
+  );
+
+  const handleCancel = () => {
+    if (isDirty) {
+      Alert.alert(
+        'Discard Changes?',
+        'You have unsaved changes in this pet profile. Are you sure you want to discard them?',
+        [
+          { text: 'Keep Editing', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: onBack },
+        ]
+      );
+    } else {
+      onBack();
+    }
+  };
 
   const validate = () => {
     const errs: Record<string, string> = {};
@@ -75,6 +108,8 @@ export const AddPetScreen: React.FC<AddPetScreenProps> = ({ onBack, onPetCreated
         weight_kg: weightKg ? parseFloat(weightKg).toFixed(2) : null,
         is_neutered: isNeutered,
         microchip_number: microchipNumber.trim(),
+        photo: photoAsset || undefined,
+        avatar_id: avatarId || null,
         notes: notes.trim(),
       });
       onPetCreated(newPet);
@@ -97,7 +132,7 @@ export const AddPetScreen: React.FC<AddPetScreenProps> = ({ onBack, onPetCreated
   return (
     <KeyboardAwareContainer contentContainerStyle={styles.container}>
       <View style={styles.navRow}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+        <TouchableOpacity onPress={handleCancel} style={styles.backBtn} activeOpacity={0.7}>
           <Icon name="chevron-left" size={18} color={Colors.primary} />
           <Text style={styles.backBtnText}>Back</Text>
         </TouchableOpacity>
@@ -112,6 +147,15 @@ export const AddPetScreen: React.FC<AddPetScreenProps> = ({ onBack, onPetCreated
       )}
 
       <View style={styles.formCard}>
+        {/* Photo Upload & Built-in Avatar Selection */}
+        <PetAvatarPicker
+          photoUri={photoAsset?.uri}
+          avatarId={avatarId}
+          species={species}
+          onPhotoSelected={setPhotoAsset}
+          onAvatarSelected={setAvatarId}
+        />
+
         <Input
           label="Pet Name *"
           placeholder="e.g. Luna, Milo"
@@ -211,7 +255,7 @@ export const AddPetScreen: React.FC<AddPetScreenProps> = ({ onBack, onPetCreated
         <View style={styles.btnRow}>
           <TouchableOpacity
             style={styles.cancelBtn}
-            onPress={onBack}
+            onPress={handleCancel}
             activeOpacity={0.7}
           >
             <Text style={styles.cancelBtnText}>Cancel</Text>

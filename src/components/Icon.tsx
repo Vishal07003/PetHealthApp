@@ -30,6 +30,11 @@ import {
   Scale,
   Pill,
   FileText,
+  PawPrint,
+  Dog,
+  Cat,
+  Camera,
+  Image as ImageIcon,
 } from 'lucide-react-native';
 
 export type IconName =
@@ -58,7 +63,12 @@ export type IconName =
   | 'syringe'
   | 'scale'
   | 'pill'
-  | 'file-text';
+  | 'file-text'
+  | 'paw'
+  | 'dog'
+  | 'cat'
+  | 'camera'
+  | 'image';
 
 interface IconProps {
   name: IconName;
@@ -159,6 +169,21 @@ export const Icon: React.FC<IconProps> = ({
       break;
     case 'file-text':
       IconComponent = FileText;
+      break;
+    case 'paw':
+      IconComponent = PawPrint;
+      break;
+    case 'dog':
+      IconComponent = Dog;
+      break;
+    case 'cat':
+      IconComponent = Cat;
+      break;
+    case 'camera':
+      IconComponent = Camera;
+      break;
+    case 'image':
+      IconComponent = ImageIcon;
       break;
     default:
       IconComponent = Shield;

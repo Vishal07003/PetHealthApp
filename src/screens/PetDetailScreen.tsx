@@ -10,6 +10,7 @@ import {
 import { Colors, Spacing, Typography } from '../theme/theme';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
+import { PetAvatar } from '../components/PetAvatar';
 import { Pet } from '../types/api';
 import { PetService } from '../services/PetHealthService';
 
@@ -55,8 +56,6 @@ export const PetDetailScreen: React.FC<PetDetailScreenProps> = ({
     }
   };
 
-  const icon = pet.species === 'cat' ? '🐱' : pet.species === 'dog' ? '🐶' : '🐾';
-
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {/* Top Clinical Nav Row */}
@@ -73,9 +72,11 @@ export const PetDetailScreen: React.FC<PetDetailScreenProps> = ({
 
       {/* Patient Hero Card */}
       <View style={styles.heroCard}>
-        <View style={styles.avatarBox}>
-          <Text style={styles.avatarIcon}>{icon}</Text>
-        </View>
+        <PetAvatar
+          pet={pet}
+          size={72}
+          style={{ marginBottom: Spacing.sm }}
+        />
         <Text style={styles.petName}>{pet.name}</Text>
         <Text style={styles.petBreed}>
           {pet.species === 'dog' ? 'Golden retriever • CANINE' : `${pet.breed || pet.species.toUpperCase()} • ${pet.sex.toUpperCase()}`}

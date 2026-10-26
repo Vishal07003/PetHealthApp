@@ -13,6 +13,7 @@ import {
 import { Colors, Spacing, Typography } from '../theme/theme';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
+import { PetAvatar } from '../components/PetAvatar';
 import { useAuth } from '../context/AuthContext';
 import { PetService, ClinicalService } from '../services/PetHealthService';
 import { fcmManager } from '../services/FCMService';
@@ -230,11 +231,11 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
       {/* Patient Profile Hero Card */}
       <View style={styles.profileHeroCard}>
         <View style={styles.heroTop}>
-          <View style={styles.avatarBox}>
-            <Text style={styles.avatarEmoji}>
-              {pet?.species === 'cat' ? '🐱' : pet?.species === 'dog' ? '🐶' : '🐾'}
-            </Text>
-          </View>
+          <PetAvatar
+            pet={pet}
+            size={58}
+            style={{ marginRight: 12 }}
+          />
           <View style={styles.heroInfo}>
             <View style={styles.nameRow}>
               <Text style={styles.patientName}>{pet?.name || 'No Patient'}</Text>

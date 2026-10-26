@@ -234,7 +234,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   {selectedPet.weight_kg ? `${selectedPet.weight_kg} kg` : 'Weight not logged'}
                 </Text>
                 <Text style={styles.syncNotice}>
-                  Collar Synced • {device ? (device.is_connected ? 'Active Live' : device.last_synced_at ? new Date(device.last_synced_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Inactive') : 'Unassigned'}
+                  Collar Synced • {device ? (device.is_connected ? 'Active Live' : device.last_seen_at ? new Date(device.last_seen_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Inactive') : 'Unassigned'}
                 </Text>
               </View>
               <View style={styles.dossierRight}>

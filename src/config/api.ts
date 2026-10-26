@@ -31,6 +31,7 @@ export const API_ENDPOINTS = {
   TELEMETRY_LIST: '/telemetry/',
   INSIGHTS_LIST: '/insights/',
   INSIGHTS_GENERATE: (petId: string) => `/insights/generate/${petId}/`,
+  INSIGHTS_PET_ANALYTICS: (petId: string) => `/insights/pet/${petId}/analytics/`,
   NOTIFICATIONS: '/notifications/',
   NOTIFICATION_MARK_READ: (id: string) => `/notifications/${id}/mark-read/`,
   NOTIFICATION_MARK_ALL_READ: '/notifications/mark-all-read/',

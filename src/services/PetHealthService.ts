@@ -24,6 +24,7 @@ import {
   IntakeUnit,
   DailyIntakeTotalsResponse,
   AppNotification,
+  PetAnalyticsResponse,
 } from '../types/api';
 
 export const AuthService = {
@@ -343,8 +344,15 @@ export const InsightsService = {
     return response.data;
   },
 
-  async generateInsights(petId: string): Promise<ActivitySummary> {
-    const response = await apiClient.post<ActivitySummary>(API_ENDPOINTS.INSIGHTS_GENERATE(petId));
+  async generateInsights(petId: string, isSimulation = false): Promise<ActivitySummary> {
+    const url = `${API_ENDPOINTS.INSIGHTS_GENERATE(petId)}?is_simulation=${isSimulation}`;
+    const response = await apiClient.post<ActivitySummary>(url);
+    return response.data;
+  },
+
+  async getPetAnalytics(petId: string, includeSimulation = false): Promise<PetAnalyticsResponse> {
+    const url = `${API_ENDPOINTS.INSIGHTS_PET_ANALYTICS(petId)}?include_simulation=${includeSimulation}`;
+    const response = await apiClient.get<PetAnalyticsResponse>(url);
     return response.data;
   },
 };

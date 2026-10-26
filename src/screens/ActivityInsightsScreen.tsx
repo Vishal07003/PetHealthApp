@@ -6,13 +6,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
+  RefreshControl,
 } from 'react-native';
 import { Colors, Spacing, Typography } from '../theme/theme';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
 import { PetAvatar } from '../components/PetAvatar';
-import { Pet, TelemetryReading, ActivitySummary } from '../types/api';
+import { Pet, TelemetryReading, ActivitySummary, PetAnalyticsResponse } from '../types/api';
 import { TelemetryService, InsightsService } from '../services/PetHealthService';
 import { showToast } from '../utils/toast';
 
@@ -24,34 +24,44 @@ interface ActivityInsightsScreenProps {
 export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ pet, onBack }) => {
   const [readings, setReadings] = useState<TelemetryReading[]>([]);
   const [summaries, setSummaries] = useState<ActivitySummary[]>([]);
+  const [analytics, setAnalytics] = useState<PetAnalyticsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [simulating, setSimulating] = useState(false);
+  const [includeSim, setIncludeSim] = useState(false);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [rData, sData] = await Promise.all([
-        TelemetryService.listReadings(pet.id),
-        InsightsService.listSummaries(pet.id),
+      const [rData, sData, aData] = await Promise.all([
+        TelemetryService.listReadings(pet.id).catch(() => []),
+        InsightsService.listSummaries(pet.id).catch(() => []),
+        InsightsService.getPetAnalytics(pet.id, includeSim).catch(() => null),
       ]);
       setReadings(rData);
       setSummaries(sData);
+      setAnalytics(aData);
     } catch (e: any) {
       console.warn('Failed to load insights:', e);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
     fetchData();
-  }, [pet.id]);
+  }, [pet.id, includeSim]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+  };
 
   const handleRunSimulatorBatch = async () => {
     setSimulating(true);
     try {
       const now = new Date();
-      // Generate synthetic IMU readings for active running session
       const syntheticReadings = [];
       for (let i = 0; i < 15; i++) {
         const timeOffset = new Date(now.getTime() - i * 1000 * 15).toISOString();
@@ -71,7 +81,6 @@ export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ 
         });
       }
 
-      // Ingest via direct backend API call simulating ESP32
       await TelemetryService.ingestReadings(
         'SIM:24:6F:28:9A:12',
         'demo-dummy-key',
@@ -79,14 +88,13 @@ export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ 
         true // is_simulation = true
       );
 
-      // Compute fresh insight window
-      await InsightsService.generateInsights(pet.id);
+      // Compute fresh simulation window
+      await InsightsService.generateInsights(pet.id, true);
       await fetchData();
-      showToast('15 synthetic IMU readings recorded.');
+      showToast('15 synthetic readings recorded. Toggle "Include Simulation" to view in analytics.');
     } catch (err: any) {
-      // In case device credentials are required, compute with existing readings or display message
       try {
-        await InsightsService.generateInsights(pet.id);
+        await InsightsService.generateInsights(pet.id, true);
         await fetchData();
       } catch (err2) {
         showToast('Pair a collar device first to link telemetry.');
@@ -97,7 +105,10 @@ export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ 
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
+    >
       <View style={styles.navRow}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
           <Icon name="chevron-left" size={18} color={Colors.primary} />
@@ -119,16 +130,105 @@ export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ 
           <View style={{ marginLeft: 12, flex: 1 }}>
             <Text style={styles.petTitle}>{pet.name}'s Health Insights</Text>
             <Text style={styles.petSubtitle}>
-              Statistical movement observation derived from wearable 3-axis sensors.
+              Probabilistic activity and movement trends derived from wearable 3-axis sensors.
             </Text>
           </View>
         </View>
+
+        <View style={styles.filterToggleRow}>
+          <Text style={styles.filterToggleLabel}>Data Source:</Text>
+          <TouchableOpacity
+            style={[styles.togglePill, !includeSim && styles.togglePillActive]}
+            onPress={() => setIncludeSim(false)}
+          >
+            <Text style={[styles.togglePillText, !includeSim && styles.togglePillTextActive]}>
+              Real Hardware Only
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.togglePill, includeSim && styles.togglePillActive]}
+            onPress={() => setIncludeSim(true)}
+          >
+            <Text style={[styles.togglePillText, includeSim && styles.togglePillTextActive]}>
+              Include Simulated
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.disclaimerBadge}>
           <Text style={styles.disclaimerText}>
-            Probabilistic Observation: Not a veterinary diagnosis.
+            Observational Metrics: Not a veterinary diagnosis.
           </Text>
         </View>
       </View>
+
+      {/* Personalized AI Insights & Baseline Card */}
+      {analytics && (
+        <View style={styles.analyticsCard}>
+          <View style={styles.analyticsHeader}>
+            <Icon name="activity" size={20} color={Colors.primary} />
+            <Text style={styles.analyticsTitle}>Personalized Baseline & Trends</Text>
+          </View>
+
+          {/* Baseline status banner */}
+          {analytics.baseline.status === 'insufficient_data' ? (
+            <View style={styles.insufficientBox}>
+              <Icon name="clock" size={18} color="#D97706" />
+              <View style={{ marginLeft: 8, flex: 1 }}>
+                <Text style={styles.insufficientTitle}>Baseline Establishing</Text>
+                <Text style={styles.insufficientText}>{analytics.baseline.message}</Text>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.baselineStatsRow}>
+              <View style={styles.baselineStat}>
+                <Text style={styles.baselineLabel}>Normal Active/Day</Text>
+                <Text style={styles.baselineValue}>
+                  {analytics.baseline.mean_daily_active_minutes} mins
+                </Text>
+              </View>
+              <View style={styles.baselineStat}>
+                <Text style={styles.baselineLabel}>Normal Rest/Day</Text>
+                <Text style={styles.baselineValue}>
+                  {analytics.baseline.mean_daily_rest_minutes} mins
+                </Text>
+              </View>
+              <View style={styles.baselineStat}>
+                <Text style={styles.baselineLabel}>Days Analyzed</Text>
+                <Text style={styles.baselineValue}>
+                  {analytics.baseline.days_analyzed} days
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Anomaly Detection Banner */}
+          {analytics.anomaly.detected && (
+            <View style={styles.anomalyAlertBox}>
+              <Icon name="alert" size={20} color="#DC2626" />
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text style={styles.anomalyAlertTitle}>Activity Anomaly Detected</Text>
+                <Text style={styles.anomalyAlertReason}>{analytics.anomaly.reason}</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Actionable Natural Language Insights */}
+          <Text style={styles.insightSectionHeader}>Observed Patterns & Recommendations</Text>
+          {analytics.personalized_insights.map((insight, idx) => (
+            <View key={idx} style={styles.insightItemRow}>
+              <View style={styles.bulletDot} />
+              <Text style={styles.insightItemText}>{insight}</Text>
+            </View>
+          ))}
+
+          {/* Factual Food & Water Correlation */}
+          <View style={styles.foodWaterCorrelationBox}>
+            <Text style={styles.fwHeader}>Nutrition & Hydration Observations</Text>
+            <Text style={styles.fwNote}>{analytics.food_water_summary.observation_note}</Text>
+          </View>
+        </View>
+      )}
 
       {/* Simulator Test Action */}
       <View style={styles.simCard}>
@@ -137,7 +237,7 @@ export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ 
           <Text style={styles.simTag}>DEMO</Text>
         </View>
         <Text style={styles.simSubtitle}>
-          Simulate a high-energy running & walking session to verify telemetry vector math and anomaly inference.
+          Simulate a high-energy running & walking session to verify vector math, classification, and anomaly detection.
         </Text>
         <Button
           title={simulating ? 'Ingesting Sensor Data...' : 'Ingest Simulated Telemetry Batch'}
@@ -149,7 +249,7 @@ export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ 
       </View>
 
       {/* Activity Summaries */}
-      <Text style={styles.sectionTitle}>Activity Windows</Text>
+      <Text style={styles.sectionTitle}>Recent Activity Windows</Text>
       {loading ? (
         <ActivityIndicator color={Colors.primary} style={{ marginTop: 20 }} />
       ) : summaries.length === 0 ? (
@@ -158,7 +258,7 @@ export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ 
           <Text style={styles.emptySubtext}>Use the simulator above to generate initial motion readings.</Text>
         </View>
       ) : (
-        summaries.map((s) => (
+        summaries.slice(0, 10).map((s) => (
           <View key={s.id} style={styles.summaryCard}>
             <View style={styles.summaryTop}>
               <Text style={styles.summaryState}>
@@ -196,8 +296,8 @@ export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ 
       )}
 
       {/* Raw Sensor Readings */}
-      <Text style={styles.sectionTitle}>Recent Sensor Readings ({readings.length})</Text>
-      {readings.slice(0, 10).map((r) => (
+      <Text style={styles.sectionTitle}>Collar Sensor Readings ({readings.length})</Text>
+      {readings.slice(0, 8).map((r) => (
         <View key={r.id} style={styles.readingRow}>
           <View>
             <Text style={styles.readingMag}>{r.accel_magnitude} G</Text>
@@ -248,152 +348,313 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
   },
   petTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    ...Typography.titleMedium,
     color: Colors.text,
   },
   petSubtitle: {
-    fontSize: 13,
+    ...Typography.bodySmall,
     color: Colors.textSecondary,
-    marginTop: 4,
-    lineHeight: 18,
+    marginTop: 2,
   },
-  disclaimerBadge: {
-    backgroundColor: '#EDF2F7',
-    padding: 8,
-    borderRadius: 8,
-    marginTop: 10,
+  filterToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 8,
   },
-  disclaimerText: {
+  filterToggleLabel: {
     fontSize: 12,
+    color: Colors.textSecondary,
+    marginRight: 8,
+    fontWeight: '600',
+  },
+  togglePill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: Colors.background,
+    marginRight: 6,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  togglePillActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  togglePillText: {
+    fontSize: 11,
     color: Colors.textSecondary,
     fontWeight: '500',
   },
-  simCard: {
+  togglePillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  disclaimerBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  disclaimerText: {
+    fontSize: 11,
+    color: '#92400E',
+    fontWeight: '500',
+  },
+  analyticsCard: {
     backgroundColor: Colors.surface,
-    padding: Spacing.md,
-    borderRadius: 14,
-    marginBottom: Spacing.lg,
+    borderRadius: 16,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
-    elevation: 2,
+    borderColor: Colors.border,
+  },
+  analyticsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  analyticsTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.text,
+    marginLeft: 8,
+  },
+  insufficientBox: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFBEB',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    marginBottom: 12,
+  },
+  insufficientTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#B45309',
+    marginBottom: 2,
+  },
+  insufficientText: {
+    fontSize: 12,
+    color: '#92400E',
+    lineHeight: 16,
+  },
+  baselineStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.background,
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 12,
+  },
+  baselineStat: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  baselineLabel: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginBottom: 2,
+  },
+  baselineValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  anomalyAlertBox: {
+    flexDirection: 'row',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  anomalyAlertTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#DC2626',
+    marginBottom: 2,
+  },
+  anomalyAlertReason: {
+    fontSize: 12,
+    color: '#991B1B',
+    lineHeight: 16,
+  },
+  insightSectionHeader: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  insightItemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  bulletDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.primary,
+    marginTop: 6,
+    marginRight: 8,
+  },
+  insightItemText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.text,
+    lineHeight: 18,
+  },
+  foodWaterCorrelationBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  fwHeader: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+    marginBottom: 2,
+  },
+  fwNote: {
+    fontSize: 12,
+    color: '#64748B',
+    lineHeight: 16,
+  },
+  simCard: {
+    backgroundColor: '#F0FDF4',
+    padding: Spacing.lg,
+    borderRadius: 16,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
   },
   simHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   simTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: Colors.text,
+    color: '#166534',
   },
   simTag: {
-    backgroundColor: '#ED8936',
-    color: '#FFF',
+    backgroundColor: '#DCFCE7',
+    color: '#15803D',
     fontSize: 10,
     fontWeight: '700',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: 4,
   },
   simSubtitle: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginTop: 4,
-    lineHeight: 18,
+    ...Typography.bodySmall,
+    color: '#15803D',
+    marginBottom: Spacing.md,
   },
   simBtn: {
-    marginTop: 12,
+    marginTop: 4,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: Spacing.sm,
     marginTop: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
   emptyCard: {
     backgroundColor: Colors.surface,
-    padding: Spacing.lg,
-    borderRadius: 14,
+    padding: Spacing.xl,
+    borderRadius: 12,
     alignItems: 'center',
-    marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
+    marginBottom: Spacing.md,
   },
   emptyText: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...Typography.bodyMedium,
     color: Colors.text,
+    fontWeight: '600',
   },
   emptySubtext: {
-    fontSize: 12,
+    ...Typography.bodySmall,
     color: Colors.textSecondary,
     marginTop: 4,
+    textAlign: 'center',
   },
   summaryCard: {
     backgroundColor: Colors.surface,
     padding: Spacing.md,
-    borderRadius: 14,
-    marginBottom: Spacing.md,
+    borderRadius: 12,
+    marginBottom: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
-    elevation: 2,
+    borderColor: Colors.border,
   },
   summaryTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   summaryState: {
     fontSize: 15,
     fontWeight: '700',
-    color: Colors.primary,
+    color: Colors.text,
   },
   simBadge: {
-    backgroundColor: '#ED8936',
-    color: '#FFF',
     fontSize: 10,
+    backgroundColor: '#FEE2E2',
+    color: '#B91C1C',
     fontWeight: '700',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: 4,
   },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 6,
+    backgroundColor: Colors.background,
+    padding: Spacing.sm,
+    borderRadius: 8,
   },
   statCol: {
-    flex: 1,
+    alignItems: 'center',
   },
   statLabel: {
-    fontSize: 11,
-    color: Colors.textMuted,
+    fontSize: 10,
+    color: Colors.textSecondary,
+    marginBottom: 2,
   },
   statVal: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
     color: Colors.text,
-    marginTop: 2,
   },
   anomalyBox: {
-    backgroundColor: '#FFF5F5',
-    padding: 8,
-    borderRadius: 8,
-    marginTop: 8,
+    marginTop: Spacing.sm,
+    backgroundColor: '#FEF2F2',
+    padding: Spacing.sm,
+    borderRadius: 6,
     borderLeftWidth: 3,
-    borderLeftColor: Colors.danger,
+    borderLeftColor: '#EF4444',
   },
   anomalyText: {
-    color: Colors.danger,
     fontSize: 12,
-    fontWeight: '600',
+    color: '#B91C1C',
   },
   readingRow: {
     flexDirection: 'row',
@@ -401,20 +662,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.surface,
     padding: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: 10,
+    borderRadius: 8,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
   },
   readingMag: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: Colors.text,
   },
   readingAxes: {
-    fontSize: 11,
-    color: Colors.textMuted,
+    fontSize: 10,
+    color: Colors.textSecondary,
     marginTop: 2,
   },
   readingSource: {
@@ -423,8 +683,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   readingBattery: {
-    fontSize: 11,
-    color: Colors.success,
+    fontSize: 10,
+    color: Colors.primary,
     marginTop: 2,
   },
 });

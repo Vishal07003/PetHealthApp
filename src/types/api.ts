@@ -245,9 +245,64 @@ export interface AppNotification {
   message: string;
   is_read: boolean;
   read_at: string | null;
-  metadata: Record<string, any>;
   delivery_status: 'queued' | 'accepted' | 'failed' | 'no_device';
   delivery_attempts: number;
   created_at: string;
 }
+
+export interface BaselineMetrics {
+  status: 'established' | 'insufficient_data';
+  days_available?: number;
+  days_required?: number;
+  message?: string;
+  days_analyzed?: number;
+  mean_daily_active_minutes?: number;
+  std_daily_active_minutes?: number;
+  mean_daily_rest_minutes?: number;
+}
+
+export interface DailyActivityMetric {
+  date: string;
+  total_samples: number;
+  active_minutes: number;
+  high_intensity_minutes: number;
+  total_moving_minutes: number;
+  rest_minutes: number;
+  avg_acceleration: number;
+  is_sufficient: boolean;
+}
+
+export interface ActivityAnomalyResult {
+  detected: boolean;
+  anomaly_type?: 'reduced_activity' | 'elevated_activity';
+  z_score?: number;
+  reason: string;
+  confidence: 'low' | 'moderate' | 'high';
+}
+
+export interface FoodWaterSummaryResult {
+  date: string;
+  recorded_entries_count: number;
+  food_entries_count: number;
+  water_entries_count: number;
+  food_totals: Record<string, number>;
+  water_totals: Record<string, number>;
+  has_data: boolean;
+  observation_note: string;
+}
+
+export interface PetAnalyticsResponse {
+  pet_id: string;
+  pet_name: string;
+  species: string;
+  include_simulation: boolean;
+  baseline: BaselineMetrics;
+  today_summary: DailyActivityMetric;
+  weekly_summary: DailyActivityMetric[];
+  anomaly: ActivityAnomalyResult;
+  food_water_summary: FoodWaterSummaryResult;
+  personalized_insights: string[];
+  disclaimer: string;
+}
+
 

@@ -62,7 +62,8 @@ export const PetDetailScreen: React.FC<PetDetailScreenProps> = ({
       {/* Top Clinical Nav Row */}
       <View style={styles.navRow}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-          <Text style={styles.backBtnText}>‹ Back</Text>
+          <Icon name="chevron-left" size={18} color={Colors.primary} />
+          <Text style={styles.backBtnText}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.navTitle}>Patient Dossier</Text>
         <TouchableOpacity onPress={() => onEdit(pet)} style={styles.editBtn} activeOpacity={0.7}>
@@ -182,6 +183,8 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
@@ -189,6 +192,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.primary,
     fontWeight: '700',
+    marginLeft: 4,
   },
   editBtn: {
     paddingVertical: 4,

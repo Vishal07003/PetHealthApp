@@ -109,8 +109,9 @@ export const ImuTelemetrySimulatorScreen: React.FC<ImuTelemetrySimulatorScreenPr
       {/* Top Clinical Header */}
       <View style={styles.topBar}>
         {onBack ? (
-          <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-            <Text style={styles.backBtnText}>‹ Back</Text>
+          <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+            <Icon name="chevron-left" size={18} color={Colors.primary} />
+            <Text style={styles.backBtnText}>Back</Text>
           </TouchableOpacity>
         ) : (
           <View>
@@ -407,13 +408,16 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 6,
     paddingHorizontal: 4,
   },
   backBtnText: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.primary,
+    marginLeft: 4,
   },
   brandSubtitle: {
     fontSize: 9,

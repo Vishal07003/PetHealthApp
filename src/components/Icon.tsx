@@ -299,6 +299,64 @@ export const Icon: React.FC<IconProps> = ({
         </View>
       );
 
+    case 'bell':
+      return (
+        <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center' }, style]}>
+          {/* Bell dome / body */}
+          <View
+            style={{
+              width: s * 0.6,
+              height: s * 0.55,
+              borderTopLeftRadius: s * 0.3,
+              borderTopRightRadius: s * 0.3,
+              borderBottomLeftRadius: 3,
+              borderBottomRightRadius: 3,
+              borderWidth: stroke,
+              borderColor: color,
+              position: 'absolute',
+              top: s * 0.15,
+            }}
+          />
+          {/* Bell lip */}
+          <View
+            style={{
+              width: s * 0.78,
+              height: stroke,
+              backgroundColor: color,
+              position: 'absolute',
+              top: s * 0.7,
+              borderRadius: 1,
+            }}
+          />
+          {/* Bell clapper / bottom ball */}
+          <View
+            style={{
+              width: s * 0.22,
+              height: s * 0.14,
+              borderBottomLeftRadius: s * 0.11,
+              borderBottomRightRadius: s * 0.11,
+              backgroundColor: color,
+              position: 'absolute',
+              bottom: s * 0.08,
+            }}
+          />
+          {/* Bell top loop */}
+          <View
+            style={{
+              width: s * 0.18,
+              height: s * 0.12,
+              borderTopLeftRadius: s * 0.09,
+              borderTopRightRadius: s * 0.09,
+              borderWidth: stroke,
+              borderBottomWidth: 0,
+              borderColor: color,
+              position: 'absolute',
+              top: s * 0.04,
+            }}
+          />
+        </View>
+      );
+
     case 'file-text':
       return (
         <View style={[{ width: s, height: s, justifyContent: 'center', alignItems: 'center' }, style]}>

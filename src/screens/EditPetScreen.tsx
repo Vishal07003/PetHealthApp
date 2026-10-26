@@ -9,6 +9,7 @@ import {
 import { Colors, Spacing, Typography } from '../theme/theme';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
+import { Icon } from '../components/Icon';
 import { KeyboardAwareContainer } from '../components/KeyboardAwareContainer';
 import { PetService } from '../services/PetHealthService';
 import { Pet, PetSpecies, PetSex } from '../types/api';
@@ -101,8 +102,9 @@ export const EditPetScreen: React.FC<EditPetScreenProps> = ({
   return (
     <KeyboardAwareContainer contentContainerStyle={styles.container}>
       <View style={styles.navRow}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>‹ Cancel</Text>
+        <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+          <Icon name="chevron-left" size={18} color={Colors.primary} />
+          <Text style={styles.backBtnText}>Cancel</Text>
         </TouchableOpacity>
         <Text style={Typography.titleMedium}>Edit Pet</Text>
         <View style={{ width: 60 }} />
@@ -204,12 +206,21 @@ export const EditPetScreen: React.FC<EditPetScreenProps> = ({
           error={errors.notes}
         />
 
-        <Button
-          title="Save Changes"
-          onPress={handleUpdate}
-          loading={loading}
-          style={styles.saveBtn}
-        />
+        <View style={styles.btnRow}>
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            onPress={onBack}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.cancelBtnText}>Cancel</Text>
+          </TouchableOpacity>
+          <Button
+            title="Save Changes"
+            onPress={handleUpdate}
+            loading={loading}
+            style={styles.saveBtn}
+          />
+        </View>
       </View>
     </KeyboardAwareContainer>
   );
@@ -229,11 +240,41 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   backBtn: {
-    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
   },
   backBtnText: {
     fontSize: 16,
+    color: Colors.primary,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  btnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: Spacing.md,
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface,
+  },
+  cancelBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
     color: Colors.textSecondary,
+  },
+  saveBtn: {
+    flex: 2,
+    marginTop: 0,
   },
   formCard: {
     backgroundColor: Colors.surface,
@@ -288,9 +329,6 @@ const styles = StyleSheet.create({
   switchSubtitle: {
     fontSize: 12,
     color: Colors.textSecondary,
-  },
-  saveBtn: {
-    marginTop: Spacing.lg,
   },
   errorBanner: {
     backgroundColor: Colors.dangerLight,

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Colors, Spacing, Typography } from '../theme/theme';
 import { Button } from '../components/Button';
+import { Icon } from '../components/Icon';
 import { BlePermissionHandler } from '../services/BlePermissionHandler';
 import { DeviceService } from '../services/PetHealthService';
 import { Pet, Device } from '../types/api';
@@ -122,11 +123,12 @@ export const DeviceScannerScreen: React.FC<DeviceScannerScreenProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.navRow}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>‹ Back</Text>
+        <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+          <Icon name="chevron-left" size={18} color={Colors.primary} />
+          <Text style={styles.backBtnText}>Back</Text>
         </TouchableOpacity>
         <Text style={Typography.titleMedium}>Pair Wearable Collar</Text>
-        <View style={{ width: 50 }} />
+        <View style={{ width: 60 }} />
       </View>
 
       <View style={styles.targetCard}>
@@ -215,12 +217,16 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   backBtn: {
-    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
   },
   backBtnText: {
-    fontSize: 18,
+    fontSize: 16,
     color: Colors.primary,
     fontWeight: '600',
+    marginLeft: 4,
   },
   targetCard: {
     backgroundColor: Colors.surface,

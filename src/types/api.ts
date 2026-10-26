@@ -193,3 +193,57 @@ export interface ClinicalObservation {
   created_at: string;
 }
 
+export type IntakeType = 'food' | 'water';
+export type IntakeUnit = 'g' | 'oz' | 'cup' | 'ml' | 'fl_oz';
+
+export interface FoodWaterLog {
+  id: string;
+  pet: string;
+  intake_type: IntakeType;
+  amount: string;
+  unit: IntakeUnit;
+  logged_at: string;
+  notes: string;
+  is_manual_entry: boolean;
+  created_at: string;
+}
+
+export interface IntakeCategoryTotal {
+  intake_type: IntakeType;
+  unit: IntakeUnit;
+  total_amount: number;
+  entry_count: number;
+}
+
+export interface DailyIntakeTotalsResponse {
+  pet_id: string | null;
+  date: string;
+  totals: IntakeCategoryTotal[];
+  has_data: boolean;
+}
+
+export type NotificationType =
+  | 'activity_anomaly'
+  | 'rest_change'
+  | 'vitals_alert'
+  | 'intake_alert'
+  | 'vaccine_reminder'
+  | 'battery_low'
+  | 'system';
+
+export interface AppNotification {
+  id: string;
+  user: number;
+  pet: string | null;
+  pet_name?: string;
+  notification_type: NotificationType;
+  title: string;
+  message: string;
+  is_read: boolean;
+  read_at: string | null;
+  metadata: Record<string, any>;
+  delivery_status: 'queued' | 'accepted' | 'failed' | 'no_device';
+  delivery_attempts: number;
+  created_at: string;
+}
+

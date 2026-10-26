@@ -19,6 +19,11 @@ import {
   BodyConditionScore,
   ClinicalObservation,
   ObservationCategory,
+  FoodWaterLog,
+  IntakeType,
+  IntakeUnit,
+  DailyIntakeTotalsResponse,
+  AppNotification,
 } from '../types/api';
 
 export const AuthService = {
@@ -190,6 +195,38 @@ export const ClinicalService = {
     const response = await apiClient.post<ClinicalObservation>(API_ENDPOINTS.OBSERVATIONS, payload);
     return response.data;
   },
+
+  async listFoodWaterLogs(petId?: string, intakeType?: IntakeType): Promise<FoodWaterLog[]> {
+    let url = API_ENDPOINTS.FOOD_WATER;
+    const params: string[] = [];
+    if (petId) params.push(`pet_id=${petId}`);
+    if (intakeType) params.push(`intake_type=${intakeType}`);
+    if (params.length > 0) url += `?${params.join('&')}`;
+    const response = await apiClient.get<FoodWaterLog[]>(url);
+    return response.data;
+  },
+
+  async addFoodWaterLog(payload: {
+    pet: string;
+    intake_type: IntakeType;
+    amount: string | number;
+    unit: IntakeUnit;
+    logged_at?: string;
+    notes?: string;
+  }): Promise<FoodWaterLog> {
+    const response = await apiClient.post<FoodWaterLog>(API_ENDPOINTS.FOOD_WATER, payload);
+    return response.data;
+  },
+
+  async getDailyIntakeTotals(petId?: string, dateStr?: string): Promise<DailyIntakeTotalsResponse> {
+    let url = API_ENDPOINTS.FOOD_WATER_DAILY_TOTALS;
+    const params: string[] = [];
+    if (petId) params.push(`pet_id=${petId}`);
+    if (dateStr) params.push(`date=${dateStr}`);
+    if (params.length > 0) url += `?${params.join('&')}`;
+    const response = await apiClient.get<DailyIntakeTotalsResponse>(url);
+    return response.data;
+  },
 };
 
 export const DeviceService = {
@@ -274,3 +311,42 @@ export const InsightsService = {
     return response.data;
   },
 };
+
+export const NotificationService = {
+  async listNotifications(petId?: string, isRead?: boolean): Promise<AppNotification[]> {
+    let url = API_ENDPOINTS.NOTIFICATIONS;
+    const params: string[] = [];
+    if (petId) params.push(`pet_id=${petId}`);
+    if (isRead !== undefined) params.push(`is_read=${isRead}`);
+    if (params.length > 0) url += `?${params.join('&')}`;
+    const response = await apiClient.get<AppNotification[]>(url);
+    return response.data;
+  },
+
+  async markAsRead(notificationId: string): Promise<AppNotification> {
+    const response = await apiClient.post<AppNotification>(API_ENDPOINTS.NOTIFICATION_MARK_READ(notificationId));
+    return response.data;
+  },
+
+  async markAllAsRead(): Promise<{ status: string; marked_read_count: number }> {
+    const response = await apiClient.post<{ status: string; marked_read_count: number }>(
+      API_ENDPOINTS.NOTIFICATION_MARK_ALL_READ
+    );
+    return response.data;
+  },
+
+  async registerDeviceToken(token: string, platform: 'android' | 'ios' = 'android', deviceName = ''): Promise<void> {
+    await apiClient.post(API_ENDPOINTS.NOTIFICATION_REGISTER_DEVICE, {
+      token,
+      platform,
+      device_name: deviceName,
+    });
+  },
+
+  async unregisterDeviceToken(token: string): Promise<void> {
+    await apiClient.post(API_ENDPOINTS.NOTIFICATION_UNREGISTER_DEVICE, {
+      token,
+    });
+  },
+};
+

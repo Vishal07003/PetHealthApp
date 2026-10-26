@@ -13,7 +13,7 @@ import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
 import { ActivityRings } from '../components/ActivityRings';
 import { Pet, ActivitySummary, Device, VetAppointment, MedicalRecord } from '../types/api';
-import { PetService, InsightsService, DeviceService, ClinicalService } from '../services/PetHealthService';
+import { PetService, InsightsService, DeviceService, ClinicalService, NotificationService } from '../services/PetHealthService';
 import { useAuth } from '../context/AuthContext';
 
 interface HomeScreenProps {
@@ -22,6 +22,7 @@ interface HomeScreenProps {
   onNavigateToScanner: (pet: Pet) => void;
   onNavigateToInsights: (pet: Pet) => void;
   onNavigateToProfile: () => void;
+  onNavigateToNotifications?: () => void;
   onNavigateToVaccines: (pet: Pet) => void;
   onNavigateToObservations: (pet: Pet) => void;
   onNavigateToWeight: (pet: Pet) => void;
@@ -34,6 +35,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onNavigateToScanner,
   onNavigateToInsights,
   onNavigateToProfile,
+  onNavigateToNotifications,
   onNavigateToVaccines,
   onNavigateToObservations,
   onNavigateToWeight,
@@ -46,6 +48,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [device, setDevice] = useState<Device | null>(null);
   const [upcomingAppointment, setUpcomingAppointment] = useState<VetAppointment | null>(null);
   const [latestMedical, setLatestMedical] = useState<MedicalRecord | null>(null);
+  const [unreadNotifications, setUnreadNotifications] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,18 +66,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       setSelectedPet(active);
 
       if (active) {
-        const [summaries, devices, appts, meds] = await Promise.all([
+        const [summaries, devices, appts, meds, notifs] = await Promise.all([
           InsightsService.listSummaries(active.id).catch(() => []),
           DeviceService.listDevices().catch(() => []),
           ClinicalService.listAppointments(active.id).catch(() => []),
           ClinicalService.listMedicalRecords(active.id).catch(() => []),
+          NotificationService.listNotifications().catch(() => []),
         ]);
         setSummary(summaries.length > 0 ? summaries[0] : null);
         const paired = devices.find((d) => d.pet === active.id);
         setDevice(paired || null);
         setUpcomingAppointment(appts.length > 0 ? appts[0] : null);
         setLatestMedical(meds.length > 0 ? meds[0] : null);
+        setUnreadNotifications(notifs.filter((n) => !n.is_read).length);
       } else {
+        const notifs = await NotificationService.listNotifications().catch(() => []);
+        setUnreadNotifications(notifs.filter((n) => !n.is_read).length);
         setSummary(null);
         setDevice(null);
         setUpcomingAppointment(null);
@@ -103,7 +110,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const activeMins = summary?.active_minutes || 0;
   const restMins = summary?.rest_minutes || 0;
-  const scorePct = Math.min(Math.round(((activeMins + 20) / 60) * 100), 100);
+  const scorePct = summary ? Math.min(Math.round((activeMins / 60) * 100), 100) : 0;
 
   return (
     <ScrollView
@@ -124,13 +131,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <Text style={styles.pageTitle}>Home</Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.profileBadge}
-          onPress={onNavigateToProfile}
-          activeOpacity={0.8}
-        >
-          <Icon name="profile" size={18} color="#FFFFFF" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.bellButton}
+            onPress={onNavigateToNotifications}
+            activeOpacity={0.8}
+          >
+            <Icon name="bell" size={20} color={Colors.text} />
+            {unreadNotifications > 0 && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadBadgeText}>
+                  {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.profileBadge}
+            onPress={onNavigateToProfile}
+            activeOpacity={0.8}
+          >
+            <Icon name="profile" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Multi-Pet Selector Pills */}
@@ -223,13 +247,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             {/* Micro Vitals Badges */}
             <View style={styles.vitalsRow}>
               <View style={styles.vitalBadge}>
-                <View style={[styles.statusDot, { backgroundColor: Colors.success }]} />
-                <Text style={styles.vitalLabel}>Normal Rest Vitals</Text>
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: device?.is_connected ? Colors.success : Colors.textMuted },
+                  ]}
+                />
+                <Text style={styles.vitalLabel}>
+                  {device?.is_connected ? 'IMU Rest Tracking Active' : 'Sensor not connected'}
+                </Text>
               </View>
               <View style={styles.vitalBadge}>
-                <Icon name="battery" size={14} color={Colors.primary} />
+                <Icon name="battery" size={14} color={device ? Colors.primary : Colors.textMuted} />
                 <Text style={[styles.vitalLabel, { marginLeft: 4 }]}>
-                  Collar {device?.battery_level ? `${device.battery_level}%` : '78%'}
+                  {device?.battery_level != null ? `Collar ${device.battery_level}%` : 'Collar --'}
                 </Text>
               </View>
             </View>
@@ -245,7 +276,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <View style={styles.liveTag}>
                 <View style={[styles.liveDot, { backgroundColor: device?.is_connected ? Colors.success : Colors.tertiary }]} />
                 <Text style={styles.liveTagText}>
-                  {device?.hardware_type === 'simulator' ? 'SIMULATOR' : 'LIVE ESP32'}
+                  {!device ? 'NO DEVICE' : device.hardware_type === 'simulator' ? 'SIMULATOR' : 'LIVE ESP32'}
                 </Text>
               </View>
             </View>
@@ -254,7 +285,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <ActivityRings
               scorePercent={scorePct}
               size={175}
-              label="Goal Met"
+              label={summary ? 'Goal Met' : 'No Data'}
               subLabel="IMU Motion Score"
             />
 
@@ -262,32 +293,32 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <View style={styles.triColStats}>
               <View style={styles.colStat}>
                 <Text style={styles.colStatVal}>
-                  {activeMins > 0 ? `${activeMins}m` : '48m'}
+                  {summary ? `${activeMins}m` : 'Not available'}
                 </Text>
-                <Text style={styles.colStatSub}>of 60m</Text>
+                <Text style={styles.colStatSub}>of 60m goal</Text>
                 <Text style={styles.colStatLabel}>Active</Text>
               </View>
               <View style={styles.colDivider} />
               <View style={styles.colStat}>
                 <Text style={styles.colStatVal}>
-                  {restMins > 0 ? `${(restMins / 60).toFixed(1)}h` : '11.5h'}
+                  {summary ? `${(restMins / 60).toFixed(1)}h` : 'Not available'}
                 </Text>
-                <Text style={styles.colStatSub}>of 14h</Text>
+                <Text style={styles.colStatSub}>of 14h goal</Text>
                 <Text style={styles.colStatLabel}>Rest</Text>
               </View>
               <View style={styles.colDivider} />
               <View style={styles.colStat}>
                 <Text style={styles.colStatVal}>
-                  {summary ? `${(summary.avg_acceleration * 4.2).toFixed(1)}k` : '4.5k'}
+                  {summary ? `${(summary.avg_acceleration * 4.2).toFixed(1)}k` : 'Not available'}
                 </Text>
-                <Text style={styles.colStatSub}>of 6.0k</Text>
+                <Text style={styles.colStatSub}>of 6.0k goal</Text>
                 <Text style={styles.colStatLabel}>Steps (est)</Text>
               </View>
             </View>
 
             <View style={styles.gaugeFooter}>
               <Text style={styles.telemetryFooterText}>
-                BLE Sensor Telemetry • Verified Continuous
+                {device?.is_connected ? 'BLE Sensor Telemetry • Active Stream' : 'Collar not broadcasting • Inactive'}
               </Text>
             </View>
           </View>
@@ -296,14 +327,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <View style={styles.tripleCardRow}>
             <View style={styles.miniMetricCard}>
               <Icon name="moon" size={16} color={Colors.primary} />
-              <Text style={styles.miniVal}>{restMins > 0 ? `${Math.round(restMins / 60)}h` : '9h 40m'}</Text>
+              <Text style={styles.miniVal}>{summary ? `${Math.round(restMins / 60)}h` : '--'}</Text>
               <Text style={styles.miniSub}>Rest Duration</Text>
             </View>
 
             <View style={styles.miniMetricCard}>
               <Icon name="flame" size={16} color={Colors.secondary} />
               <Text style={styles.miniVal}>
-                {summary ? `${summary.high_intensity_minutes} min` : '38 min'}
+                {summary ? `${summary.high_intensity_minutes} min` : '--'}
               </Text>
               <Text style={styles.miniSub}>Brisk Play</Text>
             </View>
@@ -311,11 +342,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <View style={styles.miniMetricCard}>
               <Icon name="battery" size={16} color={Colors.tertiary} />
               <Text style={styles.miniVal}>
-                {device?.battery_level ? `${device.battery_level}%` : '78%'}
+                {device?.battery_level != null ? `${device.battery_level}%` : '--'}
               </Text>
               <Text style={styles.miniSub}>Collar Battery</Text>
             </View>
           </View>
+
 
           {/* System Tools & Care List */}
           <View style={styles.systemToolsHeader}>
@@ -474,6 +506,41 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.text,
     letterSpacing: -0.4,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  bellButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  unreadBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: Colors.danger,
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  unreadBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
   },
   profileBadge: {
     width: 38,

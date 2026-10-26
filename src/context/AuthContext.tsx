@@ -26,11 +26,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
+      const { fcmManager } = require('../services/FCMService');
+      await fcmManager.unregister().catch(() => {});
       await AuthService.logout();
     } finally {
       setUser(null);
     }
   };
+
 
   const refreshProfile = async () => {
     try {

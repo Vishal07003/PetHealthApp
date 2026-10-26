@@ -13,7 +13,15 @@ import {
 } from 'react-native';
 import { Colors, Spacing, Typography } from '../theme/theme';
 import { Icon } from '../components/Icon';
-import { Pet, ClinicalObservation, ObservationCategory } from '../types/api';
+import {
+  Pet,
+  ClinicalObservation,
+  ObservationCategory,
+  FoodWaterLog,
+  IntakeType,
+  IntakeUnit,
+  DailyIntakeTotalsResponse,
+} from '../types/api';
 import { ClinicalService, PetService } from '../services/PetHealthService';
 
 interface ClinicalObservationNotesScreenProps {
@@ -28,6 +36,8 @@ export const ClinicalObservationNotesScreen: React.FC<ClinicalObservationNotesSc
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(initialPet || null);
   const [observations, setObservations] = useState<ClinicalObservation[]>([]);
+  const [foodWaterLogs, setFoodWaterLogs] = useState<FoodWaterLog[]>([]);
+  const [dailyTotals, setDailyTotals] = useState<DailyIntakeTotalsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -38,14 +48,12 @@ export const ClinicalObservationNotesScreen: React.FC<ClinicalObservationNotesSc
   const [isSharedWithVet, setIsSharedWithVet] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // Daily Behavioral Matrix Toggle States
-  const [matrixStates, setMatrixStates] = useState({
-    appetite: 'Optimal • 100% consumed, brisk interest',
-    hydration: 'Normal • ~1.1L fresh water measured',
-    mobility: 'Symmetrical • Synced with 50Hz Collar Telemetry',
-    stool: 'Ideal • Grade 2 firm, uniform brown',
-    energy: 'High Vitality • Alert, playful, high engagement',
-  });
+  // Food & Water Quick Log State
+  const [intakeType, setIntakeType] = useState<IntakeType>('food');
+  const [intakeAmount, setIntakeAmount] = useState('');
+  const [intakeUnit, setIntakeUnit] = useState<IntakeUnit>('g');
+  const [intakeNotes, setIntakeNotes] = useState('');
+  const [submittingIntake, setSubmittingIntake] = useState(false);
 
   const loadData = async () => {
     try {
@@ -55,9 +63,16 @@ export const ClinicalObservationNotesScreen: React.FC<ClinicalObservationNotesSc
       setSelectedPet(active);
 
       if (active) {
-        const obs = await ClinicalService.listObservations(active.id);
+        const [obs, logs, totals] = await Promise.all([
+          ClinicalService.listObservations(active.id).catch(() => []),
+          ClinicalService.listFoodWaterLogs(active.id).catch(() => []),
+          ClinicalService.getDailyIntakeTotals(active.id).catch(() => null),
+        ]);
         setObservations(obs);
+        setFoodWaterLogs(logs);
+        setDailyTotals(totals);
       }
+
     } catch (e) {
       console.warn('Failed to load observations:', e);
     } finally {
@@ -104,6 +119,39 @@ export const ClinicalObservationNotesScreen: React.FC<ClinicalObservationNotesSc
     }
   };
 
+  const handleAddFoodWaterLog = async () => {
+    if (!selectedPet) {
+      Alert.alert('No Pet', 'Please select a pet profile first.');
+      return;
+    }
+    const parsedAmount = parseFloat(intakeAmount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      Alert.alert('Invalid Amount', 'Please enter a valid quantity greater than 0.');
+      return;
+    }
+    setSubmittingIntake(true);
+    try {
+      await ClinicalService.addFoodWaterLog({
+        pet: selectedPet.id,
+        intake_type: intakeType,
+        amount: parsedAmount.toFixed(2),
+        unit: intakeUnit,
+        notes: intakeNotes.trim(),
+      });
+      setIntakeAmount('');
+      setIntakeNotes('');
+      loadData();
+      Alert.alert(
+        'Intake Recorded',
+        `Manually logged ${parsedAmount} ${intakeUnit} of ${intakeType}. (Identified as manual owner observation)`
+      );
+    } catch (err: any) {
+      Alert.alert('Error', err.response?.data?.detail || err.response?.data?.amount?.[0] || 'Failed to log consumption.');
+    } finally {
+      setSubmittingIntake(false);
+    }
+  };
+
   const handleShareDossier = async () => {
     try {
       await Share.share({
@@ -117,6 +165,8 @@ export const ClinicalObservationNotesScreen: React.FC<ClinicalObservationNotesSc
 
   const pet = selectedPet;
   const avatar = pet?.species === 'cat' ? '🐱' : pet?.species === 'dog' ? '🐶' : '🐾';
+  const todayFoodTotal = dailyTotals?.totals.find((t) => t.intake_type === 'food') || null;
+  const todayWaterTotal = dailyTotals?.totals.find((t) => t.intake_type === 'water') || null;
 
   return (
     <ScrollView
@@ -166,16 +216,16 @@ export const ClinicalObservationNotesScreen: React.FC<ClinicalObservationNotesSc
         {/* 3-Pill Status Row: Resting, Activity, Telemetry */}
         <View style={styles.triBadgeRow}>
           <View style={styles.badgePill}>
-            <Text style={styles.badgePillTag}>RESTING</Text>
-            <Text style={styles.badgePillVal}>58 bpm est</Text>
+            <Text style={styles.badgePillTag}>VITALS (HR/TEMP)</Text>
+            <Text style={[styles.badgePillVal, { color: Colors.textMuted }]}>Not available</Text>
           </View>
           <View style={styles.badgePill}>
-            <Text style={styles.badgePillTag}>ACTIVITY</Text>
-            <Text style={styles.badgePillVal}>9.4 km</Text>
+            <Text style={styles.badgePillTag}>OBSERVATIONS</Text>
+            <Text style={styles.badgePillVal}>{observations.length} Logged</Text>
           </View>
           <View style={styles.badgePill}>
             <Text style={styles.badgePillTag}>TELEMETRY</Text>
-            <Text style={[styles.badgePillVal, { color: Colors.primary }]}>50Hz BLE</Text>
+            <Text style={[styles.badgePillVal, { color: Colors.primary }]}>IMU Tri-Axial</Text>
           </View>
         </View>
       </View>
@@ -183,46 +233,58 @@ export const ClinicalObservationNotesScreen: React.FC<ClinicalObservationNotesSc
       {/* Daily Behavioral Matrix Card */}
       <View style={styles.matrixCard}>
         <View style={styles.matrixHeaderRow}>
-          <Text style={styles.matrixTitle}>Daily Behavioral Matrix</Text>
-          <Text style={styles.matrixCheckText}>TODAY'S QUICK CHECK</Text>
+          <Text style={styles.matrixTitle}>Daily Behavioral & Intake Status</Text>
+          <Text style={styles.matrixCheckText}>TODAY'S OWNER SUMMARY</Text>
         </View>
 
-        {/* Appetite */}
+        {/* Appetite / Food */}
         <View style={styles.matrixItem}>
           <View style={[styles.matrixIconCircle, { backgroundColor: '#F3E8FF' }]}>
             <Icon name="flame" size={14} color="#7E22CE" />
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.matrixLabelRow}>
-              <Text style={styles.matrixLabel}>Appetite</Text>
-              <View style={styles.matrixTagPill}>
-                <Text style={styles.matrixTagText}>Optimal</Text>
+              <Text style={styles.matrixLabel}>Food Consumption</Text>
+              <View style={[styles.matrixTagPill, { backgroundColor: todayFoodTotal ? '#F3E8FF' : '#F1F5F9' }]}>
+                <Text style={[styles.matrixTagText, { color: todayFoodTotal ? '#7E22CE' : Colors.textMuted }]}>
+                  {todayFoodTotal ? 'Recorded' : 'Not recorded'}
+                </Text>
               </View>
             </View>
-            <Text style={styles.matrixDescription}>{matrixStates.appetite}</Text>
+            <Text style={styles.matrixDescription}>
+              {todayFoodTotal
+                ? `Manual log: ${todayFoodTotal.total_amount} ${todayFoodTotal.unit} consumed across ${todayFoodTotal.entry_count} meal(s)`
+                : 'No food portions logged today. (Not recorded)'}
+            </Text>
           </View>
-          <View style={styles.checkCircle}>
+          <View style={[styles.checkCircle, { backgroundColor: todayFoodTotal ? Colors.success : Colors.textMuted }]}>
             <Icon name="check" size={12} color="#FFFFFF" />
           </View>
         </View>
 
         <View style={styles.divider} />
 
-        {/* Hydration */}
+        {/* Hydration / Water */}
         <View style={styles.matrixItem}>
           <View style={[styles.matrixIconCircle, { backgroundColor: '#E0F2FE' }]}>
             <Icon name="refresh" size={14} color="#0369A1" />
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.matrixLabelRow}>
-              <Text style={styles.matrixLabel}>Hydration</Text>
-              <View style={[styles.matrixTagPill, { backgroundColor: '#E0F2FE' }]}>
-                <Text style={[styles.matrixTagText, { color: '#0369A1' }]}>Normal</Text>
+              <Text style={styles.matrixLabel}>Water Intake</Text>
+              <View style={[styles.matrixTagPill, { backgroundColor: todayWaterTotal ? '#E0F2FE' : '#F1F5F9' }]}>
+                <Text style={[styles.matrixTagText, { color: todayWaterTotal ? '#0369A1' : Colors.textMuted }]}>
+                  {todayWaterTotal ? 'Recorded' : 'Not recorded'}
+                </Text>
               </View>
             </View>
-            <Text style={styles.matrixDescription}>{matrixStates.hydration}</Text>
+            <Text style={styles.matrixDescription}>
+              {todayWaterTotal
+                ? `Manual log: ${todayWaterTotal.total_amount} ${todayWaterTotal.unit} tracked across ${todayWaterTotal.entry_count} entry/entries`
+                : 'No water intake logged today. (Not recorded)'}
+            </Text>
           </View>
-          <View style={styles.checkCircle}>
+          <View style={[styles.checkCircle, { backgroundColor: todayWaterTotal ? Colors.success : Colors.textMuted }]}>
             <Icon name="check" size={12} color="#FFFFFF" />
           </View>
         </View>
@@ -238,10 +300,12 @@ export const ClinicalObservationNotesScreen: React.FC<ClinicalObservationNotesSc
             <View style={styles.matrixLabelRow}>
               <Text style={styles.matrixLabel}>Mobility & Gait</Text>
               <View style={[styles.matrixTagPill, { backgroundColor: Colors.primaryLight }]}>
-                <Text style={[styles.matrixTagText, { color: Colors.primaryDark }]}>Symmetrical</Text>
+                <Text style={[styles.matrixTagText, { color: Colors.primaryDark }]}>IMU Collar</Text>
               </View>
             </View>
-            <Text style={styles.matrixDescription}>{matrixStates.mobility}</Text>
+            <Text style={styles.matrixDescription}>
+              Tri-axial accelerometer stream monitoring gait symmetry and movement intensity.
+            </Text>
           </View>
           <View style={styles.checkCircle}>
             <Icon name="check" size={12} color="#FFFFFF" />
@@ -257,14 +321,18 @@ export const ClinicalObservationNotesScreen: React.FC<ClinicalObservationNotesSc
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.matrixLabelRow}>
-              <Text style={styles.matrixLabel}>Stool Quality</Text>
+              <Text style={styles.matrixLabel}>Stool & Elimination</Text>
               <View style={[styles.matrixTagPill, { backgroundColor: '#FEF3C7' }]}>
-                <Text style={[styles.matrixTagText, { color: '#B45309' }]}>Ideal</Text>
+                <Text style={[styles.matrixTagText, { color: '#B45309' }]}>Manual Observation</Text>
               </View>
             </View>
-            <Text style={styles.matrixDescription}>{matrixStates.stool}</Text>
+            <Text style={styles.matrixDescription}>
+              {observations.find((o) => o.category === 'stool')
+                ? `Latest note: "${observations.find((o) => o.category === 'stool')?.headline}"`
+                : 'No elimination observation noted today.'}
+            </Text>
           </View>
-          <View style={styles.checkCircle}>
+          <View style={[styles.checkCircle, { backgroundColor: observations.some((o) => o.category === 'stool') ? Colors.success : Colors.textMuted }]}>
             <Icon name="check" size={12} color="#FFFFFF" />
           </View>
         </View>
@@ -278,18 +346,23 @@ export const ClinicalObservationNotesScreen: React.FC<ClinicalObservationNotesSc
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.matrixLabelRow}>
-              <Text style={styles.matrixLabel}>Energy & Mood</Text>
+              <Text style={styles.matrixLabel}>Energy & Disposition</Text>
               <View style={[styles.matrixTagPill, { backgroundColor: '#DCFCE7' }]}>
-                <Text style={[styles.matrixTagText, { color: '#15803D' }]}>High Vitality</Text>
+                <Text style={[styles.matrixTagText, { color: '#15803D' }]}>Owner Observed</Text>
               </View>
             </View>
-            <Text style={styles.matrixDescription}>{matrixStates.energy}</Text>
+            <Text style={styles.matrixDescription}>
+              {observations.find((o) => o.category === 'energy')
+                ? `Latest note: "${observations.find((o) => o.category === 'energy')?.headline}"`
+                : 'Log energy level, alertness, or behavioral changes below.'}
+            </Text>
           </View>
-          <View style={styles.checkCircle}>
+          <View style={[styles.checkCircle, { backgroundColor: observations.some((o) => o.category === 'energy') ? Colors.success : Colors.textMuted }]}>
             <Icon name="check" size={12} color="#FFFFFF" />
           </View>
         </View>
       </View>
+
 
       {/* New Observation Log Form Card */}
       <View style={styles.formCard}>
@@ -369,6 +442,146 @@ export const ClinicalObservationNotesScreen: React.FC<ClinicalObservationNotesSc
             {submitting ? 'Recording Entry...' : '+ Add Observation Note'}
           </Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Food & Water Intake Tracking Card */}
+      <View style={styles.formCard}>
+        <View style={styles.formHeaderRow}>
+          <View>
+            <Text style={styles.formTitle}>Food & Water Intake Tracking</Text>
+            <Text style={styles.formSubtitle}>Manually record portions (Owner observations)</Text>
+          </View>
+          <View style={styles.manualEntryBadge}>
+            <Text style={styles.manualEntryBadgeText}>MANUAL ENTRY</Text>
+          </View>
+        </View>
+
+        {/* Daily Totals Bar */}
+        <View style={styles.intakeTotalsRow}>
+          <View style={styles.intakeTotalBox}>
+            <Text style={styles.intakeTotalTag}>TODAY'S FOOD</Text>
+            <Text style={styles.intakeTotalVal}>
+              {todayFoodTotal ? `${todayFoodTotal.total_amount} ${todayFoodTotal.unit}` : 'Not recorded'}
+            </Text>
+            <Text style={styles.intakeTotalSub}>
+              {todayFoodTotal ? `${todayFoodTotal.entry_count} meal(s)` : 'No entries today'}
+            </Text>
+          </View>
+          <View style={styles.intakeTotalBox}>
+            <Text style={styles.intakeTotalTag}>TODAY'S WATER</Text>
+            <Text style={styles.intakeTotalVal}>
+              {todayWaterTotal ? `${todayWaterTotal.total_amount} ${todayWaterTotal.unit}` : 'Not recorded'}
+            </Text>
+            <Text style={styles.intakeTotalSub}>
+              {todayWaterTotal ? `${todayWaterTotal.entry_count} log(s)` : 'No entries today'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Type Selector (Food vs Water) */}
+        <View style={styles.intakeTypeSelector}>
+          <TouchableOpacity
+            style={[styles.intakeTypeBtn, intakeType === 'food' && styles.intakeTypeBtnActive]}
+            onPress={() => {
+              setIntakeType('food');
+              if (intakeUnit === 'ml' || intakeUnit === 'fl_oz') setIntakeUnit('g');
+            }}
+          >
+            <Icon name="flame" size={14} color={intakeType === 'food' ? Colors.surface : '#7E22CE'} />
+            <Text style={[styles.intakeTypeBtnText, intakeType === 'food' && styles.intakeTypeBtnTextActive]}>
+              Food / Meal
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.intakeTypeBtn, intakeType === 'water' && styles.intakeTypeBtnActiveWater]}
+            onPress={() => {
+              setIntakeType('water');
+              if (intakeUnit === 'g' || intakeUnit === 'oz') setIntakeUnit('ml');
+            }}
+          >
+            <Icon name="refresh" size={14} color={intakeType === 'water' ? Colors.surface : '#0369A1'} />
+            <Text style={[styles.intakeTypeBtnText, intakeType === 'water' && styles.intakeTypeBtnTextActive]}>
+              Water / Drink
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Amount & Unit Row */}
+        <View style={styles.amountUnitRow}>
+          <TextInput
+            style={styles.amountInput}
+            placeholder="Quantity (e.g. 200)"
+            placeholderTextColor={Colors.textMuted}
+            keyboardType="decimal-pad"
+            value={intakeAmount}
+            onChangeText={setIntakeAmount}
+          />
+          <View style={styles.unitPillsRow}>
+            {(intakeType === 'food' ? (['g', 'oz', 'cup'] as const) : (['ml', 'fl_oz', 'cup'] as const)).map(
+              (u) => (
+                <TouchableOpacity
+                  key={u}
+                  onPress={() => setIntakeUnit(u)}
+                  style={[styles.unitPill, intakeUnit === u && styles.unitPillActive]}
+                >
+                  <Text style={[styles.unitPillText, intakeUnit === u && styles.unitPillTextActive]}>
+                    {u}
+                  </Text>
+                </TouchableOpacity>
+              )
+            )}
+          </View>
+        </View>
+
+        <TextInput
+          style={styles.headlineInput}
+          placeholder="Optional notes (e.g. Wet kibble breakfast with meds)"
+          placeholderTextColor={Colors.textMuted}
+          value={intakeNotes}
+          onChangeText={setIntakeNotes}
+        />
+
+        <TouchableOpacity
+          style={[styles.addBtn, { backgroundColor: intakeType === 'food' ? Colors.primary : '#0284C7' }]}
+          onPress={handleAddFoodWaterLog}
+          disabled={submittingIntake}
+          activeOpacity={0.8}
+        >
+          <Icon name="plus" size={16} color="#FFFFFF" />
+          <Text style={styles.addBtnText}>
+            {submittingIntake ? 'Recording Intake...' : `+ Log ${intakeType === 'food' ? 'Food' : 'Water'} Portion`}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Recent Intake Log Entries */}
+        {foodWaterLogs.length > 0 && (
+          <View style={styles.intakeHistoryList}>
+            <Text style={styles.intakeHistoryTitle}>Recent Consumption Logs</Text>
+            {foodWaterLogs.slice(0, 5).map((log) => (
+              <View key={log.id} style={styles.intakeHistoryRow}>
+                <View style={[styles.intakeTypeIconCircle, { backgroundColor: log.intake_type === 'food' ? '#F3E8FF' : '#E0F2FE' }]}>
+                  <Icon
+                    name={log.intake_type === 'food' ? 'flame' : 'refresh'}
+                    size={12}
+                    color={log.intake_type === 'food' ? '#7E22CE' : '#0369A1'}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.intakeHistoryMain}>
+                    {log.amount} {log.unit} • {log.intake_type.toUpperCase()}
+                  </Text>
+                  {log.notes ? <Text style={styles.intakeHistoryNotes}>{log.notes}</Text> : null}
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.intakeHistoryTime}>
+                    {new Date(log.logged_at).toLocaleDateString()}
+                  </Text>
+                  <Text style={styles.manualEntryTagSmall}>Manual</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
 
       {/* Observation Timeline Header */}
@@ -944,5 +1157,181 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  formSubtitle: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  manualEntryBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  manualEntryBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#1D4ED8',
+    letterSpacing: 0.5,
+  },
+  intakeTotalsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  intakeTotalBox: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  intakeTotalTag: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+  },
+  intakeTotalVal: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: Colors.text,
+    marginTop: 4,
+  },
+  intakeTotalSub: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  intakeTypeSelector: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  intakeTypeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 8,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  intakeTypeBtnActive: {
+    backgroundColor: '#7E22CE',
+    borderColor: '#7E22CE',
+  },
+  intakeTypeBtnActiveWater: {
+    backgroundColor: '#0284C7',
+    borderColor: '#0284C7',
+  },
+  intakeTypeBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  intakeTypeBtnTextActive: {
+    color: Colors.surface,
+  },
+  amountUnitRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  amountInput: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 14,
+    color: Colors.text,
+  },
+  unitPillsRow: {
+    flexDirection: 'row',
+    gap: 4,
+    alignItems: 'center',
+  },
+  unitPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderRadius: 8,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  unitPillActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  unitPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textMuted,
+  },
+  unitPillTextActive: {
+    color: '#FFFFFF',
+  },
+  intakeHistoryList: {
+    marginTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+    paddingTop: 10,
+  },
+  intakeHistoryTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  intakeHistoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  intakeTypeIconCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  intakeHistoryMain: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  intakeHistoryNotes: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginTop: 1,
+  },
+  intakeHistoryTime: {
+    fontSize: 10,
+    color: Colors.textMuted,
+  },
+  manualEntryTagSmall: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#1D4ED8',
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+    marginTop: 2,
   },
 });

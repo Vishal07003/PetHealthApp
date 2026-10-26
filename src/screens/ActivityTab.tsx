@@ -183,21 +183,28 @@ export const ActivityTab: React.FC<ActivityTabProps> = ({ initialPet }) => {
       <View style={styles.actionDurationCard}>
         <View style={styles.cardHeaderRow}>
           <View>
-            <Text style={styles.subTag}>ACTION DURATION</Text>
+            <Text style={styles.subTag}>ACTION DURATION (IMU METRICS)</Text>
             <Text style={styles.durationBig}>
-              {summary ? `${summary.active_minutes || 54} mins` : '54 mins'} <Text style={styles.durationSub}>active</Text>
+              {summary ? `${summary.active_minutes} mins` : 'Not available'}{' '}
+              <Text style={styles.durationSub}>{summary ? 'active' : ''}</Text>
             </Text>
-            <Text style={styles.goalDeltaText}>Daily Goal: 60 mins • +12% vs ystd</Text>
+            <Text style={styles.goalDeltaText}>
+              {summary ? 'Daily Goal: 60 mins • Synced via Collar IMU' : 'Collar not connected or no telemetry'}
+            </Text>
           </View>
           <View style={styles.percentCircle}>
-            <Text style={styles.percentText}>90%</Text>
+            <Text style={styles.percentText}>
+              {summary ? `${Math.min(Math.round((summary.active_minutes / 60) * 100), 100)}%` : '--'}
+            </Text>
           </View>
         </View>
 
         {/* Movement Spectrum Micro-Breakdown */}
         <View style={styles.spectrumBarRow}>
           <Text style={styles.spectrumTitle}>Movement Spectrum</Text>
-          <Text style={styles.recordedTime}>14h Recorded</Text>
+          <Text style={styles.recordedTime}>
+            {summary ? `${((summary.active_minutes + summary.rest_minutes) / 60).toFixed(1)}h Recorded` : 'No telemetry logged'}
+          </Text>
         </View>
         <View style={styles.spectrumBar}>
           <View style={[styles.spectrumSegment, { flex: 68, backgroundColor: '#B8E2D8' }]} />
@@ -276,8 +283,8 @@ export const ActivityTab: React.FC<ActivityTabProps> = ({ initialPet }) => {
 
       {/* Recent Sessions List */}
       <View style={styles.sessionsHeader}>
-        <Text style={styles.sessionsTitle}>Recent Sessions</Text>
-        <Text style={styles.sessionsCount}>3 events Today</Text>
+        <Text style={styles.sessionsTitle}>Motion Classification Reference</Text>
+        <Text style={styles.sessionsCount}>IMU Baseline Gait Profiles</Text>
       </View>
 
       <View style={styles.sessionCard}>

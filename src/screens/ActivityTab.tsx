@@ -13,8 +13,8 @@ import { Colors, Spacing, Typography } from '../theme/theme';
 import { Button } from '../components/Button';
 import { Icon } from '../components/Icon';
 import { ActivityRings } from '../components/ActivityRings';
-import { Pet, TelemetryReading, ActivitySummary } from '../types/api';
-import { TelemetryService, InsightsService, PetService } from '../services/PetHealthService';
+import { Pet, TelemetryReading, ActivitySummary, Device } from '../types/api';
+import { TelemetryService, InsightsService, PetService, DeviceService } from '../services/PetHealthService';
 
 interface ActivityTabProps {
   initialPet?: Pet | null;
@@ -23,6 +23,7 @@ interface ActivityTabProps {
 export const ActivityTab: React.FC<ActivityTabProps> = ({ initialPet }) => {
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(initialPet || null);
+  const [pairedDevice, setPairedDevice] = useState<Device | null>(null);
   const [timeFilter, setTimeFilter] = useState<'today' | '7days' | '30days'>('today');
   const [dataFilter, setDataFilter] = useState<'all' | 'real' | 'simulated'>('all');
   const [readings, setReadings] = useState<TelemetryReading[]>([]);
@@ -33,11 +34,16 @@ export const ActivityTab: React.FC<ActivityTabProps> = ({ initialPet }) => {
 
   const loadData = async () => {
     try {
-      const petList = await PetService.listPets();
+      const [petList, devList] = await Promise.all([
+        PetService.listPets().catch(() => []),
+        DeviceService.listDevices().catch(() => []),
+      ]);
       setPets(petList);
       const active = selectedPet || petList[0] || null;
       setSelectedPet(active);
       if (active) {
+        const found = devList.find((d: Device) => d.pet === active.id) || null;
+        setPairedDevice(found);
         await fetchTelemetry(active.id);
       }
     } catch (e) {
@@ -93,8 +99,9 @@ export const ActivityTab: React.FC<ActivityTabProps> = ({ initialPet }) => {
         });
       }
 
+      const targetUid = pairedDevice?.device_uid || 'ESP-8821';
       await TelemetryService.ingestReadings(
-        'ESP-8821',
+        targetUid,
         'demo-key',
         syntheticBatch,
         true
@@ -158,10 +165,14 @@ export const ActivityTab: React.FC<ActivityTabProps> = ({ initialPet }) => {
       {/* Telemetry Hardware Device Pill */}
       <View style={styles.hardwarePillBar}>
         <View style={styles.hwLeft}>
-          <View style={styles.liveGreenDot} />
-          <Text style={styles.hwTitle}>ESP32 IMU LIVE TELEMETRY</Text>
+          <View style={[styles.liveGreenDot, !pairedDevice && { backgroundColor: Colors.textMuted }]} />
+          <Text style={styles.hwTitle}>
+            {pairedDevice ? `${pairedDevice.name.toUpperCase()} TELEMETRY` : 'COLLAR NOT LINKED'}
+          </Text>
         </View>
-        <Text style={styles.hwId}>ID: ESP-8821</Text>
+        <Text style={styles.hwId}>
+          {pairedDevice ? `ID: ${pairedDevice.device_uid}` : 'Offline'}
+        </Text>
       </View>
 
       {/* Segmented Filter: All / Real / Simulated */}

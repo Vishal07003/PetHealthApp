@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { StatusBar, StyleSheet, View } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StatusBar, StyleSheet, View, BackHandler } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SplashScreen } from './src/screens/SplashScreen';
@@ -44,7 +44,72 @@ const MainNavigator: React.FC = () => {
   const [authScreen, setAuthScreen] = useState<AuthScreenState>('login');
   const [activeTab, setActiveTab] = useState<MainTabType>('home');
   const [subScreen, setSubScreen] = useState<AppSubScreenState>('tabs');
+  const [navHistory, setNavHistory] = useState<AppSubScreenState[]>([]);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
+
+  /**
+   * Push a new subScreen onto the navigation history stack.
+   * Prevents consecutive identical screens from stacking.
+   */
+  const navigateToSubScreen = useCallback((target: AppSubScreenState, pet?: Pet) => {
+    if (pet) setSelectedPet(pet);
+    setSubScreen((current) => {
+      if (current === target) return current;
+      setNavHistory((prev) => [...prev, current]);
+      return target;
+    });
+  }, []);
+
+  /**
+   * Pop from the navigation history stack or return to tabs.
+   */
+  const navigateBack = useCallback(() => {
+    setNavHistory((prev) => {
+      if (prev.length === 0) {
+        setSubScreen('tabs');
+        return [];
+      }
+      const newHistory = [...prev];
+      const previousScreen = newHistory.pop() || 'tabs';
+      setSubScreen(previousScreen);
+      return newHistory;
+    });
+  }, []);
+
+  /**
+   * Reset navigation to root tabs and clear history.
+   */
+  const resetToTabs = useCallback((tab?: MainTabType) => {
+    if (tab) setActiveTab(tab);
+    setNavHistory([]);
+    setSubScreen('tabs');
+  }, []);
+
+  // Android Hardware Back button integration
+  useEffect(() => {
+    const onHardwareBack = () => {
+      // 1. If currently in a subscreen, navigate back up the history stack
+      if (subScreen !== 'tabs') {
+        navigateBack();
+        return true; // handled
+      }
+
+      // 2. If at root tabs but not on the 'home' tab, switch back to 'home' tab first
+      if (activeTab !== 'home') {
+        setActiveTab('home');
+        return true; // handled
+      }
+
+      // 3. If on home tab, allow default Android behavior (exit app)
+      return false;
+    };
+
+    const backSubscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      onHardwareBack
+    );
+    return () => backSubscription.remove();
+  }, [subScreen, activeTab, navigateBack]);
 
   // Initialize FCM listeners & routing when authenticated
   useEffect(() => {
@@ -63,23 +128,24 @@ const MainNavigator: React.FC = () => {
         }
       }
 
-      // Route based on notification type
+      // Route based on notification type with clean history stack
       const notifType = payload.notification_type;
       if (notifType === 'activity_anomaly' || notifType === 'rest_change') {
+        setNavHistory(['tabs']);
         setSubScreen('insights');
       } else if (notifType === 'vaccine_reminder') {
+        setNavHistory(['tabs']);
         setSubScreen('vaccines');
       } else if (notifType === 'intake_alert') {
+        setNavHistory(['tabs']);
         setSubScreen('observations');
       } else if (notifType === 'battery_low') {
-        setActiveTab('devices');
-        setSubScreen('tabs');
+        resetToTabs('devices');
       } else {
-        setActiveTab('home');
-        setSubScreen('tabs');
+        resetToTabs('home');
       }
     });
-  }, [user]);
+  }, [user, resetToTabs]);
 
   if (loading) {
     return <SplashScreen />;
@@ -102,9 +168,14 @@ const MainNavigator: React.FC = () => {
   if (subScreen === 'add_pet') {
     return (
       <AddPetScreen
-        onBack={() => setSubScreen('tabs')}
+        onBack={navigateBack}
         onPetCreated={(newPet) => {
           setSelectedPet(newPet);
+          // Replace add_pet in history with pet_detail so back returns to originating screen
+          setNavHistory((prev) => {
+            const nextHistory = prev.filter((s) => s !== 'add_pet');
+            return nextHistory;
+          });
           setSubScreen('pet_detail');
         }}
       />
@@ -113,38 +184,38 @@ const MainNavigator: React.FC = () => {
 
   if (subScreen === 'pet_detail') {
     if (!selectedPet) {
-      setSubScreen('tabs');
+      resetToTabs();
       return null;
     }
     return (
       <PetDetailScreen
         pet={selectedPet}
-        onBack={() => setSubScreen('tabs')}
+        onBack={navigateBack}
         onEdit={(petToEdit) => {
-          setSelectedPet(petToEdit);
-          setSubScreen('edit_pet');
+          navigateToSubScreen('edit_pet', petToEdit);
         }}
         onPetDeleted={() => {
           setSelectedPet(null);
-          setSubScreen('tabs');
+          resetToTabs();
         }}
-        onNavigateToScanner={() => setSubScreen('device_scanner')}
-        onNavigateToInsights={() => setSubScreen('insights')}
+        onNavigateToScanner={() => navigateToSubScreen('device_scanner', selectedPet)}
+        onNavigateToInsights={() => navigateToSubScreen('insights', selectedPet)}
       />
     );
   }
 
   if (subScreen === 'device_scanner') {
     if (!selectedPet) {
-      setSubScreen('tabs');
+      resetToTabs();
       return null;
     }
     return (
       <DeviceScannerScreen
         pet={selectedPet}
-        onBack={() => setSubScreen('pet_detail')}
+        onBack={navigateBack}
         onDevicePaired={() => {
-          setSubScreen('pet_detail');
+          // After pairing device, return to previous context
+          navigateBack();
         }}
       />
     );
@@ -152,29 +223,30 @@ const MainNavigator: React.FC = () => {
 
   if (subScreen === 'insights') {
     if (!selectedPet) {
-      setSubScreen('tabs');
+      resetToTabs();
       return null;
     }
     return (
       <ActivityInsightsScreen
         pet={selectedPet}
-        onBack={() => setSubScreen('pet_detail')}
+        onBack={navigateBack}
       />
     );
   }
 
   if (subScreen === 'edit_pet') {
     if (!selectedPet) {
-      setSubScreen('tabs');
+      resetToTabs();
       return null;
     }
     return (
       <EditPetScreen
         pet={selectedPet}
-        onBack={() => setSubScreen('pet_detail')}
+        onBack={navigateBack}
         onPetUpdated={(updatedPet) => {
           setSelectedPet(updatedPet);
-          setSubScreen('pet_detail');
+          // Return to pet_detail
+          navigateBack();
         }}
       />
     );
@@ -184,7 +256,7 @@ const MainNavigator: React.FC = () => {
     return (
       <VaccinesMedicalRecordsScreen
         initialPet={selectedPet}
-        onBack={() => setSubScreen('tabs')}
+        onBack={navigateBack}
       />
     );
   }
@@ -193,7 +265,7 @@ const MainNavigator: React.FC = () => {
     return (
       <ClinicalObservationNotesScreen
         initialPet={selectedPet}
-        onBack={() => setSubScreen('tabs')}
+        onBack={navigateBack}
       />
     );
   }
@@ -202,7 +274,7 @@ const MainNavigator: React.FC = () => {
     return (
       <WeightBodyConditionScreen
         initialPet={selectedPet}
-        onBack={() => setSubScreen('tabs')}
+        onBack={navigateBack}
       />
     );
   }
@@ -211,7 +283,7 @@ const MainNavigator: React.FC = () => {
     return (
       <ImuTelemetrySimulatorScreen
         initialPet={selectedPet}
-        onBack={() => setSubScreen('tabs')}
+        onBack={navigateBack}
       />
     );
   }
@@ -219,7 +291,7 @@ const MainNavigator: React.FC = () => {
   if (subScreen === 'notifications') {
     return (
       <NotificationsScreen
-        onBack={() => setSubScreen('tabs')}
+        onBack={navigateBack}
         onNotificationSelect={async (notif: AppNotification) => {
           // Resolve target pet if specified
           if (notif.pet) {
@@ -232,17 +304,16 @@ const MainNavigator: React.FC = () => {
             }
           }
 
-          // Navigate directly to relevant subsystem
+          // Navigate to relevant subsystem with notifications preserved in history
           const notifType = notif.notification_type;
           if (notifType === 'activity_anomaly' || notifType === 'rest_change') {
-            setSubScreen('insights');
+            navigateToSubScreen('insights');
           } else if (notifType === 'vaccine_reminder') {
-            setSubScreen('vaccines');
+            navigateToSubScreen('vaccines');
           } else if (notifType === 'intake_alert') {
-            setSubScreen('observations');
+            navigateToSubScreen('observations');
           } else if (notifType === 'battery_low') {
-            setActiveTab('devices');
-            setSubScreen('tabs');
+            resetToTabs('devices');
           }
         }}
       />
@@ -255,37 +326,16 @@ const MainNavigator: React.FC = () => {
       <View style={styles.tabContent}>
         {activeTab === 'home' && (
           <HomeScreen
-            onSelectPet={(pet) => {
-              setSelectedPet(pet);
-              setSubScreen('pet_detail');
-            }}
-            onNavigateToAddPet={() => setSubScreen('add_pet')}
-            onNavigateToScanner={(pet) => {
-              setSelectedPet(pet);
-              setSubScreen('device_scanner');
-            }}
-            onNavigateToInsights={(pet) => {
-              setSelectedPet(pet);
-              setSubScreen('insights');
-            }}
+            onSelectPet={(pet) => navigateToSubScreen('pet_detail', pet)}
+            onNavigateToAddPet={() => navigateToSubScreen('add_pet')}
+            onNavigateToScanner={(pet) => navigateToSubScreen('device_scanner', pet)}
+            onNavigateToInsights={(pet) => navigateToSubScreen('insights', pet)}
             onNavigateToProfile={() => setActiveTab('profile')}
-            onNavigateToNotifications={() => setSubScreen('notifications')}
-            onNavigateToVaccines={(pet) => {
-              setSelectedPet(pet);
-              setSubScreen('vaccines');
-            }}
-            onNavigateToObservations={(pet) => {
-              setSelectedPet(pet);
-              setSubScreen('observations');
-            }}
-            onNavigateToWeight={(pet) => {
-              setSelectedPet(pet);
-              setSubScreen('weight');
-            }}
-            onNavigateToSimulator={(pet) => {
-              setSelectedPet(pet);
-              setSubScreen('simulator');
-            }}
+            onNavigateToNotifications={() => navigateToSubScreen('notifications')}
+            onNavigateToVaccines={(pet) => navigateToSubScreen('vaccines', pet)}
+            onNavigateToObservations={(pet) => navigateToSubScreen('observations', pet)}
+            onNavigateToWeight={(pet) => navigateToSubScreen('weight', pet)}
+            onNavigateToSimulator={(pet) => navigateToSubScreen('simulator', pet)}
           />
         )}
 
@@ -295,14 +345,16 @@ const MainNavigator: React.FC = () => {
 
         {activeTab === 'devices' && (
           <DevicesTab
-            onNavigateToScanner={(pet) => {
-              setSelectedPet(pet);
-              setSubScreen('device_scanner');
-            }}
+            onNavigateToScanner={(pet) => navigateToSubScreen('device_scanner', pet)}
           />
         )}
 
-        {activeTab === 'profile' && <ProfileTab />}
+        {activeTab === 'profile' && (
+          <ProfileTab
+            onNavigateToScanner={(pet) => navigateToSubScreen('device_scanner', pet)}
+            onNavigateToInsights={(pet) => navigateToSubScreen('insights', pet)}
+          />
+        )}
       </View>
 
       <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />

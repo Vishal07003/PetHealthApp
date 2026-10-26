@@ -520,48 +520,29 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
       {/* Owner Account Section */}
       <View style={styles.ownerHeader}>
         <Text style={styles.ownerTitle}>Owner Account</Text>
-        <Text style={styles.ownerTag}>STAFF / CL-1218</Text>
       </View>
 
       <View style={styles.ownerCard}>
         <View style={styles.ownerRow}>
           <View style={styles.ownerAvatarBadge}>
-            <Text style={styles.ownerInitial}>NT</Text>
+            <Text style={styles.ownerInitial}>
+              {user?.first_name ? user.first_name[0].toUpperCase() : 'U'}
+            </Text>
           </View>
           <View style={styles.ownerInfo}>
             <Text style={styles.ownerName}>
-              {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : 'NERD-TECH Veterinary Admin'}
+              {user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : user?.username || 'Owner'}
             </Text>
-            <Text style={styles.ownerEmail}>{user?.email || 'admin@nerd-tech.local'}</Text>
+            <Text style={styles.ownerEmail}>{user?.email || 'No email registered'}</Text>
           </View>
-          <Icon name="chevron-right" size={16} color={Colors.textMuted} />
         </View>
       </View>
 
-      {/* Application Preferences & Settings */}
-      <Text style={styles.settingsSectionTitle}>APPLICATION PREFERENCES</Text>
-      <View style={styles.settingsGroup}>
-        <View style={styles.settingItem}>
-          <Text style={styles.settingLbl}>Push Notifications</Text>
-          <Text style={styles.settingVal}>Enabled</Text>
-        </View>
-        <View style={styles.roadmapDivider} />
-        <View style={styles.settingItem}>
-          <Text style={styles.settingLbl}>Biometric Unlock</Text>
-          <Text style={styles.settingVal}>Active</Text>
-        </View>
-        <View style={styles.roadmapDivider} />
-        <View style={styles.settingItem}>
-          <Text style={styles.settingLbl}>Theme</Text>
-          <Text style={styles.settingVal}>System Light</Text>
-        </View>
-      </View>
-
-      {/* Telemetry & Diagnostics */}
-      <Text style={styles.settingsSectionTitle}>TELEMETRY & DIAGNOSTICS</Text>
-      <View style={styles.settingsGroup}>
-        {__DEV__ && (
-          <>
+      {/* Development Diagnostics (Dev builds only) */}
+      {__DEV__ && (
+        <>
+          <Text style={styles.settingsSectionTitle}>DEVELOPMENT & DIAGNOSTICS</Text>
+          <View style={styles.settingsGroup}>
             <TouchableOpacity
               style={styles.settingItem}
               onPress={handleInspectFCMToken}
@@ -577,25 +558,9 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
                 {fetchingFCM ? 'Reading...' : 'Inspect ›'}
               </Text>
             </TouchableOpacity>
-            <View style={styles.roadmapDivider} />
-          </>
-        )}
-        <TouchableOpacity
-          style={styles.settingItem}
-          onPress={() => Alert.alert('Export CSV', 'Raw accelerometer CSV ready for download.')}
-        >
-          <Text style={styles.settingLbl}>Export Telemetry Data (CSV)</Text>
-          <Icon name="chevron-right" size={14} color={Colors.textMuted} />
-        </TouchableOpacity>
-        <View style={styles.roadmapDivider} />
-        <TouchableOpacity
-          style={styles.settingItem}
-          onPress={() => Alert.alert('Cache Cleared', 'Local telemetry cache reset.')}
-        >
-          <Text style={styles.settingLbl}>Clear Local Cache</Text>
-          <Text style={styles.settingVal}>48.2 MB</Text>
-        </TouchableOpacity>
-      </View>
+          </View>
+        </>
+      )}
 
       {/* Sign Out Action */}
       <TouchableOpacity

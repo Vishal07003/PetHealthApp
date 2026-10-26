@@ -229,12 +229,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <View style={styles.dossierInfo}>
                 <Text style={styles.dossierName}>{selectedPet.name}</Text>
                 <Text style={styles.dossierSub}>
-                  {selectedPet.species === 'dog' ? 'Canine' : 'Feline'} •{' '}
+                  {selectedPet.species === 'dog' ? 'Canine' : selectedPet.species === 'cat' ? 'Feline' : selectedPet.species} •{' '}
                   {selectedPet.breed || 'Standard'} •{' '}
-                  {selectedPet.weight_kg ? `${selectedPet.weight_kg} kg` : '20.5 kg'}
+                  {selectedPet.weight_kg ? `${selectedPet.weight_kg} kg` : 'Weight not logged'}
                 </Text>
                 <Text style={styles.syncNotice}>
-                  Collar Synced • {device ? (device.is_connected ? 'Active Live' : '6m ago') : 'Unassigned'}
+                  Collar Synced • {device ? (device.is_connected ? 'Active Live' : device.last_synced_at ? new Date(device.last_synced_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Inactive') : 'Unassigned'}
                 </Text>
               </View>
               <View style={styles.dossierRight}>
@@ -443,7 +443,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <View style={styles.menuContent}>
                 <Text style={styles.menuTitle}>Weight & Body Condition</Text>
                 <Text style={styles.menuSub}>
-                  {selectedPet.weight_kg ? `${selectedPet.weight_kg} kg` : '28.5 kg'} • WSAVA 1-9 scale & 6M trendline
+                  {selectedPet.weight_kg ? `${selectedPet.weight_kg} kg` : 'Weight not recorded'} • WSAVA 1-9 scale & 6M trendline
                 </Text>
               </View>
               <Icon name="chevron-right" size={16} color={Colors.textMuted} />

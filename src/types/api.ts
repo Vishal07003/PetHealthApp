@@ -233,6 +233,8 @@ export type NotificationType =
   | 'intake_alert'
   | 'vaccine_reminder'
   | 'battery_low'
+  | 'daily_summary'
+  | 'weekly_insights'
   | 'system';
 
 export interface AppNotification {

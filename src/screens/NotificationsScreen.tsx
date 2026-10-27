@@ -119,6 +119,10 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         return { name: 'file-text' as const, color: '#7E22CE', bg: '#F3E8FF' };
       case 'battery_low':
         return { name: 'battery' as const, color: Colors.warning, bg: '#FEF3C7' };
+      case 'daily_summary':
+        return { name: 'activity' as const, color: Colors.primary, bg: Colors.primaryLight };
+      case 'weekly_insights':
+        return { name: 'activity' as const, color: Colors.secondary, bg: Colors.secondaryLight };
       case 'vitals_alert':
         return { name: 'alert' as const, color: Colors.danger, bg: Colors.dangerLight };
       default:

@@ -309,7 +309,7 @@ export const TelemetryService = {
 
   async ingestReadings(
     deviceUid: string,
-    deviceKey: string,
+    deviceKey?: string,
     readings: Array<{
       accel_x: number;
       accel_y: number;
@@ -320,18 +320,25 @@ export const TelemetryService = {
       battery_level?: number;
       rssi?: number;
       timestamp?: string;
-    }>,
-    isSimulation = true
+    }> = [],
+    isSimulation = true,
+    petId?: string
   ) {
+    const headers: Record<string, string> = {};
+    if (deviceUid) headers['X-Device-UID'] = deviceUid;
+    if (deviceKey) headers['X-Device-Key'] = deviceKey;
+
+    const payload: Record<string, any> = {
+      readings,
+      is_simulation: isSimulation,
+    };
+    if (deviceUid) payload.device_uid = deviceUid;
+    if (petId) payload.pet_id = petId;
+
     const response = await apiClient.post(
       API_ENDPOINTS.TELEMETRY_INGEST,
-      { readings, is_simulation: isSimulation },
-      {
-        headers: {
-          'X-Device-UID': deviceUid,
-          'X-Device-Key': deviceKey,
-        },
-      }
+      payload,
+      { headers }
     );
     return response.data;
   },

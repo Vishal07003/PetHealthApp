@@ -100,19 +100,20 @@ export const ActivityTab: React.FC<ActivityTabProps> = ({ initialPet }) => {
         });
       }
 
-      const targetUid = pairedDevice?.device_uid || 'ESP-8821';
+      const targetUid = pairedDevice?.device_uid || `SIM-${selectedPet.id.slice(0, 8)}`;
       await TelemetryService.ingestReadings(
         targetUid,
-        'demo-key',
+        undefined,
         syntheticBatch,
-        true
+        true,
+        selectedPet.id
       );
-      await InsightsService.generateInsights(selectedPet.id);
+      await InsightsService.generateInsights(selectedPet.id, true);
       await fetchTelemetry(selectedPet.id);
       showToast('Telemetry recorded & timeline updated.');
     } catch (e) {
       try {
-        await InsightsService.generateInsights(selectedPet.id);
+        await InsightsService.generateInsights(selectedPet.id, true);
         await fetchTelemetry(selectedPet.id);
       } catch (err2) {
         showToast('Pair collar device to link telemetry.');

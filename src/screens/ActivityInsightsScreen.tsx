@@ -82,10 +82,11 @@ export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ 
       }
 
       await TelemetryService.ingestReadings(
-        'SIM:24:6F:28:9A:12',
-        'demo-dummy-key',
+        `SIM-${pet.id.slice(0, 8)}`,
+        undefined,
         syntheticReadings,
-        true // is_simulation = true
+        true, // is_simulation = true
+        pet.id
       );
 
       // Compute fresh simulation window

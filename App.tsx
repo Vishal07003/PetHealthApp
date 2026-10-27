@@ -130,7 +130,12 @@ const MainNavigator: React.FC = () => {
 
       // Route based on notification type with clean history stack
       const notifType = payload.notification_type;
-      if (notifType === 'activity_anomaly' || notifType === 'rest_change') {
+      if (
+        notifType === 'activity_anomaly' ||
+        notifType === 'rest_change' ||
+        notifType === 'daily_summary' ||
+        notifType === 'weekly_insights'
+      ) {
         setNavHistory(['tabs']);
         setSubScreen('insights');
       } else if (notifType === 'vaccine_reminder') {

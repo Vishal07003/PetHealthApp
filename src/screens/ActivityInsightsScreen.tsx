@@ -265,8 +265,8 @@ export const ActivityInsightsScreen: React.FC<ActivityInsightsScreenProps> = ({ 
                 {s.dominant_state === 'running'
                   ? 'Active / Running'
                   : s.dominant_state === 'walking'
-                  ? 'Walking / Active'
-                  : 'Resting / Low Motion'}
+                    ? 'Walking / Active'
+                    : 'Resting / Low Motion'}
               </Text>
               {s.is_simulation && <Text style={styles.simBadge}>SIMULATED</Text>}
             </View>

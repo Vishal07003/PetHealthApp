@@ -1,11 +1,14 @@
 import { Platform } from 'react-native';
 
-// In development with an Android physical device or emulator using ADB reverse forwarding:
-// `adb reverse tcp:8000 tcp:8000` maps device localhost (127.0.0.1:8000) directly to the host machine.
-export const DEV_API_URL = 'http://192.168.31.8:8000/api/v1';
-export const PRODUCTION_API_URL = 'https://api.pethealth.production/api/v1';
+// Target PC backend IP and port for local testing:
+export const API_HOST_IP = '192.168.31.8';
+export const API_PORT = '8000';
+export const BACKEND_BASE_URL = `http://${API_HOST_IP}:${API_PORT}`;
+export const API_BASE_URL = `${BACKEND_BASE_URL}/api/v1`;
 
-export const API_BASE_URL = __DEV__ ? DEV_API_URL :PRODUCTION_API_URL;
+// DEV_API_URL and PRODUCTION_API_URL point to the active backend for consistency across all build variants
+export const DEV_API_URL = API_BASE_URL;
+export const PRODUCTION_API_URL = API_BASE_URL;
 
 export const API_ENDPOINTS = {
   HEALTH: '/health/',

@@ -3,7 +3,7 @@ import { View, Image, StyleSheet, StyleProp, ViewStyle, ImageStyle } from 'react
 import { Colors } from '../theme/theme';
 import { Icon, IconName } from './Icon';
 import { Pet } from '../types/api';
-import { DEV_API_URL } from '../config/api';
+import { API_BASE_URL } from '../config/api';
 
 
 export interface BuiltinAvatar {
@@ -37,7 +37,7 @@ export const resolvePhotoUrl = (photoUrl?: string | null): string | null => {
     return photoUrl;
   }
   // Relative media path from Django
-  const baseUrl = DEV_API_URL.replace(/\/api\/v1\/?$/, '');
+  const baseUrl = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
   return `${baseUrl}${photoUrl.startsWith('/') ? '' : '/'}${photoUrl}`;
 };
 

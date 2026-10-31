@@ -46,6 +46,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const [summary, setSummary] = useState<ActivitySummary | null>(null);
+  const [devices, setDevices] = useState<Device[]>([]);
   const [device, setDevice] = useState<Device | null>(null);
   const [upcomingAppointment, setUpcomingAppointment] = useState<VetAppointment | null>(null);
   const [latestMedical, setLatestMedical] = useState<MedicalRecord | null>(null);
@@ -54,35 +55,70 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Track currently selected pet across renders and async closures
+  const selectedPetRef = React.useRef<Pet | null>(null);
+
+  // Monotonically increasing request ID to ignore stale responses from earlier pet selections or loads
+  const latestPetRequestIdRef = React.useRef<number>(0);
+
+  /**
+   * Loads pet-specific metrics for the active pet and prevents race conditions
+   * when switching between pets rapidly or when full sync completes.
+   */
+  const loadPetSpecificData = async (petId: string, currentDevices: Device[] = devices) => {
+    const requestId = ++latestPetRequestIdRef.current;
+    try {
+      const [sums, appts, meds] = await Promise.all([
+        InsightsService.listSummaries(petId).catch(() => []),
+        ClinicalService.listAppointments(petId).catch(() => []),
+        ClinicalService.listMedicalRecords(petId).catch(() => []),
+      ]);
+
+      // If a newer pet selection or refresh occurred while waiting, ignore this response
+      if (requestId !== latestPetRequestIdRef.current) {
+        return;
+      }
+
+      setSummary(sums.length > 0 ? sums[0] : null);
+      setUpcomingAppointment(appts.length > 0 ? appts[0] : null);
+      setLatestMedical(meds.length > 0 ? meds[0] : null);
+
+      const paired = currentDevices.find((d) => d.pet === petId);
+      setDevice(paired || null);
+    } catch {
+      // In case of error on the active request, preserve existing UI
+    }
+  };
+
+  /**
+   * Full data sync: lists pets, user-level devices, and unread notifications,
+   * then loads data for the active pet.
+   */
   const loadData = async () => {
     try {
       setError(null);
-      const petList = await PetService.listPets();
-      setPets(petList);
+      const [petList, devList, notifs] = await Promise.all([
+        PetService.listPets().catch(() => []),
+        DeviceService.listDevices().catch(() => []),
+        NotificationService.listNotifications().catch(() => []),
+      ]);
 
-      const active = selectedPet
-        ? petList.find((p) => p.id === selectedPet.id) || petList[0] || null
+      setPets(petList);
+      setDevices(devList);
+      setUnreadNotifications(notifs.filter((n) => !n.is_read).length);
+
+      // Determine active pet using current ref to avoid overwriting a newer selection made during fetch
+      const currentSelected = selectedPetRef.current;
+      const active = currentSelected
+        ? petList.find((p) => p.id === currentSelected.id) || petList[0] || null
         : petList[0] || null;
 
+      selectedPetRef.current = active;
       setSelectedPet(active);
 
       if (active) {
-        const [summaries, devices, appts, meds, notifs] = await Promise.all([
-          InsightsService.listSummaries(active.id).catch(() => []),
-          DeviceService.listDevices().catch(() => []),
-          ClinicalService.listAppointments(active.id).catch(() => []),
-          ClinicalService.listMedicalRecords(active.id).catch(() => []),
-          NotificationService.listNotifications().catch(() => []),
-        ]);
-        setSummary(summaries.length > 0 ? summaries[0] : null);
-        const paired = devices.find((d) => d.pet === active.id);
-        setDevice(paired || null);
-        setUpcomingAppointment(appts.length > 0 ? appts[0] : null);
-        setLatestMedical(meds.length > 0 ? meds[0] : null);
-        setUnreadNotifications(notifs.filter((n) => !n.is_read).length);
+        await loadPetSpecificData(active.id, devList);
       } else {
-        const notifs = await NotificationService.listNotifications().catch(() => []);
-        setUnreadNotifications(notifs.filter((n) => !n.is_read).length);
         setSummary(null);
         setDevice(null);
         setUpcomingAppointment(null);
@@ -94,6 +130,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  /**
+   * Optimized pet switch handler: Reuses already-loaded user devices list
+   * and queries only the selected pet's summary and clinical records.
+   */
+  const handleSelectPet = (pet: Pet) => {
+    if (selectedPetRef.current?.id === pet.id) return;
+    selectedPetRef.current = pet;
+    setSelectedPet(pet);
+
+    // Instant optimistic device matching from existing devices state
+    const paired = devices.find((d) => d.pet === pet.id);
+    setDevice(paired || null);
+
+    // Fetch pet-specific records with stale-response protection
+    loadPetSpecificData(pet.id, devices);
   };
 
   useEffect(() => {
@@ -166,15 +219,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             return (
               <TouchableOpacity
                 key={p.id}
-                onPress={() => {
-                  setSelectedPet(p);
-                  InsightsService.listSummaries(p.id)
-                    .then((sums) => setSummary(sums[0] || null))
-                    .catch(() => { });
-                  DeviceService.listDevices()
-                    .then((devs) => setDevice(devs.find((d) => d.pet === p.id) || null))
-                    .catch(() => { });
-                }}
+                onPress={() => handleSelectPet(p)}
                 style={[styles.petPill, isSelected && styles.petPillActive]}
               >
                 <View style={[styles.dotIndicator, isSelected && styles.dotIndicatorActive]} />

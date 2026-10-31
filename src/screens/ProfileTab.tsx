@@ -70,28 +70,69 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
   const [weightNotes, setWeightNotes] = useState('');
   const [savingWeight, setSavingWeight] = useState(false);
 
+  // Track currently selected pet across renders and async closures
+  const selectedPetRef = React.useRef<Pet | null>(null);
+
+  // Monotonically increasing request ID to ignore stale responses from earlier pet selections or loads
+  const latestPetRequestIdRef = React.useRef<number>(0);
+
+  /**
+   * Batches pet-specific clinical records via Promise.all and prevents
+   * stale async responses when rapidly tapping between pets or syncing.
+   */
+  const loadPetRecords = async (petId: string) => {
+    const requestId = ++latestPetRequestIdRef.current;
+    try {
+      const [meds, appts, weights] = await Promise.all([
+        ClinicalService.listMedicalRecords(petId).catch(() => []),
+        ClinicalService.listAppointments(petId).catch(() => []),
+        ClinicalService.listWeights(petId).catch(() => []),
+      ]);
+
+      if (requestId !== latestPetRequestIdRef.current) {
+        return;
+      }
+
+      setMedicalRecords(meds);
+      setAppointments(appts);
+      setWeightRecords(weights);
+    } catch (err) {
+      console.warn('Failed to load clinical pet records:', err);
+    }
+  };
+
   const loadData = async () => {
     try {
       const res = await PetService.listPets();
       setPets(res);
-      const active = selectedPet ? (res.find((p) => p.id === selectedPet.id) || res[0]) : res[0];
+      const currentSelected = selectedPetRef.current;
+      const active = currentSelected ? (res.find((p) => p.id === currentSelected.id) || res[0]) : res[0];
+      selectedPetRef.current = active || null;
       setSelectedPet(active || null);
 
       if (active) {
-        const [meds, appts, weights] = await Promise.all([
-          ClinicalService.listMedicalRecords(active.id).catch(() => []),
-          ClinicalService.listAppointments(active.id).catch(() => []),
-          ClinicalService.listWeights(active.id).catch(() => []),
-        ]);
-        setMedicalRecords(meds);
-        setAppointments(appts);
-        setWeightRecords(weights);
+        await loadPetRecords(active.id);
+      } else {
+        setMedicalRecords([]);
+        setAppointments([]);
+        setWeightRecords([]);
       }
     } catch (err) {
       console.warn('Failed to load profile tab data:', err);
     } finally {
       setRefreshing(false);
     }
+  };
+
+  /**
+   * Optimized pet selection: immediately sets the active pet,
+   * then batches clinical requests with stale-response protection.
+   */
+  const handleSelectPet = (petItem: Pet) => {
+    if (selectedPetRef.current?.id === petItem.id) return;
+    selectedPetRef.current = petItem;
+    setSelectedPet(petItem);
+    loadPetRecords(petItem.id);
   };
 
   useEffect(() => {
@@ -197,12 +238,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
             return (
               <TouchableOpacity
                 key={p.id}
-                onPress={() => {
-                  setSelectedPet(p);
-                  ClinicalService.listMedicalRecords(p.id).then(setMedicalRecords).catch(() => []);
-                  ClinicalService.listAppointments(p.id).then(setAppointments).catch(() => []);
-                  ClinicalService.listWeights(p.id).then(setWeightRecords).catch(() => []);
-                }}
+                onPress={() => handleSelectPet(p)}
                 style={[styles.petSelectorPill, isSel && styles.petSelectorPillActive]}
               >
                 <Text style={[styles.petSelectorText, isSel && styles.petSelectorTextActive]}>

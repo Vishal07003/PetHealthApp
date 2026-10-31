@@ -53,65 +53,97 @@ interface PetAvatarProps {
   borderWidth?: number;
 }
 
-export const PetAvatar: React.FC<PetAvatarProps> = ({
-  pet,
-  photoUrl,
-  avatarId,
-  species,
-  size = 48,
-  style,
-  imageStyle,
-  borderColor = Colors.border,
-  borderWidth = 1,
-}) => {
-  const activePhoto = photoUrl || pet?.photo;
-  const activeAvatarId = avatarId || pet?.avatar_id;
-  const activeSpecies = species || pet?.species || 'dog';
+export const PetAvatar: React.FC<PetAvatarProps> = React.memo<PetAvatarProps>(
+  ({
+    pet,
+    photoUrl,
+    avatarId,
+    species,
+    size = 48,
+    style,
+    imageStyle,
+    borderColor = Colors.border,
+    borderWidth = 1,
+  }) => {
+    const activePhoto = photoUrl || pet?.photo;
+    const activeAvatarId = avatarId || pet?.avatar_id;
+    const activeSpecies = species || pet?.species || 'dog';
 
-  const resolvedPhoto = resolvePhotoUrl(activePhoto);
-  const builtin = getBuiltinAvatar(activeAvatarId);
+    const resolvedPhoto = resolvePhotoUrl(activePhoto);
+    const builtin = getBuiltinAvatar(activeAvatarId);
 
-  const borderRadius = size / 2;
+    const borderRadius = size / 2;
 
-  const [imageError, setImageError] = React.useState(false);
+    const [imageError, setImageError] = React.useState(false);
 
-  // 1. If photo is available and hasn't errored out, render Image
-  if (resolvedPhoto && !imageError) {
-    return (
-      <View
-        style={[
-          styles.container,
-          {
-            width: size,
-            height: size,
-            borderRadius,
-            borderColor,
-            borderWidth,
-            backgroundColor: '#F3F4F6',
-          },
-          style,
-        ]}
-      >
-        <Image
-          source={{ uri: resolvedPhoto }}
-          onError={() => setImageError(true)}
+    // Reset error state if photo URL changes
+    React.useEffect(() => {
+      setImageError(false);
+    }, [resolvedPhoto]);
+
+    // 1. If photo is available and hasn't errored out, render Image
+    if (resolvedPhoto && !imageError) {
+      return (
+        <View
           style={[
+            styles.container,
             {
-              width: size - borderWidth * 2,
-              height: size - borderWidth * 2,
-              borderRadius: (size - borderWidth * 2) / 2,
+              width: size,
+              height: size,
+              borderRadius,
+              borderColor,
+              borderWidth,
+              backgroundColor: '#F3F4F6',
             },
-            imageStyle,
+            style,
           ]}
-          resizeMode="cover"
-        />
-      </View>
-    );
-  }
+        >
+          <Image
+            source={{ uri: resolvedPhoto }}
+            onError={() => setImageError(true)}
+            style={[
+              {
+                width: size - borderWidth * 2,
+                height: size - borderWidth * 2,
+                borderRadius: (size - borderWidth * 2) / 2,
+              },
+              imageStyle,
+            ]}
+            resizeMode="cover"
+          />
+        </View>
+      );
+    }
 
-  // 2. If a built-in avatar was chosen, render its stylized icon badge
-  if (builtin) {
+    // 2. If a built-in avatar was chosen, render its stylized icon badge
+    if (builtin) {
+      const iconSize = Math.round(size * 0.52);
+      return (
+        <View
+          style={[
+            styles.container,
+            {
+              width: size,
+              height: size,
+              borderRadius,
+              backgroundColor: builtin.bgColor,
+              borderColor,
+              borderWidth,
+            },
+            style,
+          ]}
+        >
+          <Icon name={builtin.icon} size={iconSize} color={builtin.iconColor} />
+        </View>
+      );
+    }
+
+    // 3. Fallback: clean species-based icon badge (no emoji)
+    const fallbackIcon: IconName = activeSpecies === 'cat' ? 'cat' : activeSpecies === 'dog' ? 'dog' : 'paw';
+    const fallbackBg = activeSpecies === 'cat' ? '#FFF7ED' : activeSpecies === 'dog' ? '#EFF6FF' : '#FAF5EE';
+    const fallbackColor = activeSpecies === 'cat' ? '#EA580C' : activeSpecies === 'dog' ? '#2563EB' : Colors.primary;
     const iconSize = Math.round(size * 0.52);
+
     return (
       <View
         style={[
@@ -120,43 +152,50 @@ export const PetAvatar: React.FC<PetAvatarProps> = ({
             width: size,
             height: size,
             borderRadius,
-            backgroundColor: builtin.bgColor,
+            backgroundColor: fallbackBg,
             borderColor,
             borderWidth,
           },
           style,
         ]}
       >
-        <Icon name={builtin.icon} size={iconSize} color={builtin.iconColor} />
+        <Icon name={fallbackIcon} size={iconSize} color={fallbackColor} />
       </View>
     );
+  },
+  (prevProps, nextProps) => {
+    // Only re-render when props or meaningful pet fields change
+    if (
+      prevProps.size !== nextProps.size ||
+      prevProps.photoUrl !== nextProps.photoUrl ||
+      prevProps.avatarId !== nextProps.avatarId ||
+      prevProps.species !== nextProps.species ||
+      prevProps.borderColor !== nextProps.borderColor ||
+      prevProps.borderWidth !== nextProps.borderWidth
+    ) {
+      return false;
+    }
+
+    // If pet objects are identical references, no re-render
+    if (prevProps.pet === nextProps.pet) {
+      return true;
+    }
+
+    // If either pet is null/undefined
+    if (!prevProps.pet || !nextProps.pet) {
+      return prevProps.pet === nextProps.pet;
+    }
+
+    // Check key fields on pet object that affect visual avatar output
+    return (
+      prevProps.pet.id === nextProps.pet.id &&
+      prevProps.pet.photo === nextProps.pet.photo &&
+      prevProps.pet.avatar_id === nextProps.pet.avatar_id &&
+      prevProps.pet.species === nextProps.pet.species &&
+      prevProps.pet.name === nextProps.pet.name
+    );
   }
-
-  // 3. Fallback: clean species-based icon badge (no emoji)
-  const fallbackIcon: IconName = activeSpecies === 'cat' ? 'cat' : activeSpecies === 'dog' ? 'dog' : 'paw';
-  const fallbackBg = activeSpecies === 'cat' ? '#FFF7ED' : activeSpecies === 'dog' ? '#EFF6FF' : '#FAF5EE';
-  const fallbackColor = activeSpecies === 'cat' ? '#EA580C' : activeSpecies === 'dog' ? '#2563EB' : Colors.primary;
-  const iconSize = Math.round(size * 0.52);
-
-  return (
-    <View
-      style={[
-        styles.container,
-        {
-          width: size,
-          height: size,
-          borderRadius,
-          backgroundColor: fallbackBg,
-          borderColor,
-          borderWidth,
-        },
-        style,
-      ]}
-    >
-      <Icon name={fallbackIcon} size={iconSize} color={fallbackColor} />
-    </View>
-  );
-};
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -165,3 +204,4 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 });
+
